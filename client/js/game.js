@@ -4,13 +4,22 @@ function handleStartGame() {
 }
 
 function initGameFromServer(data) {
-  slots = [null, null, null];
+  const count = data.emojiSlots || 3;
+  slots = Array(count).fill(null);
   activeSlot = 0;
   mySubmitted = false;
+
+  const container = document.getElementById('e-slots-container');
+  if (container) {
+    container.innerHTML = Array.from({length: count}, (_, i) =>
+      `<div class="e-slot${i === 0 ? ' active-slot' : ''}" id="es${i}" onclick="selectSlot(${i})"></div>`
+    ).join('');
+  }
+
   renderSlots();
   updateSubmitBtn();
 
-  document.getElementById('round-label').textContent = `round ${data.roundNumber} of ${data.totalRounds}: in 3 emojis...`;
+  document.getElementById('round-label').textContent = `round ${data.roundNumber} of ${data.totalRounds}: in ${count} emoji${count === 1 ? '' : 's'}...`;
   document.getElementById('g-q').innerHTML = (myQuestion || '').replace(/\n/g, '<br>');
   const sc = document.getElementById('g-submit-count');
   if (sc) sc.textContent = '';
@@ -51,9 +60,6 @@ function renderGrid(list) {
 
 function selectSlot(i) {
   if (mySubmitted) return;
-  if (activeSlot === i && slots[i] !== null) {
-    slots[i] = null; renderSlots(); updateSubmitBtn(); return;
-  }
   activeSlot = i; renderSlots(); updateSlotLabel();
 }
 
@@ -70,15 +76,30 @@ function pickEmoji(e) {
 
 function clearSlot() {
   if (mySubmitted) return;
-  slots[activeSlot] = null; renderSlots(); updateSubmitBtn();
+  if (slots[activeSlot] !== null) {
+    slots[activeSlot] = null;
+  } else if (activeSlot > 0) {
+    activeSlot--;
+    slots[activeSlot] = null;
+    updateSlotLabel();
+  }
+  renderSlots(); updateSubmitBtn();
 }
 
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Backspace') return;
+  if (currentScreen !== 'game' || mySubmitted) return;
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  e.preventDefault();
+  clearSlot();
+});
+
 function renderSlots() {
-  [0, 1, 2].forEach(i => {
+  slots.forEach((val, i) => {
     const el = document.getElementById('es' + i);
     if (!el) return;
-    el.textContent = slots[i] || '';
-    el.classList.toggle('has', slots[i] !== null);
+    el.textContent = val || '';
+    el.classList.toggle('has', val !== null);
     el.classList.toggle('active-slot', i === activeSlot);
   });
 }
@@ -104,7 +125,7 @@ function submitEmojis() {
 
   const btn = document.getElementById('g-submit');
   if (btn) { btn.textContent = 'waiting for others...'; btn.disabled = true; btn.style.opacity = '0.5'; }
-  [0, 1, 2].forEach(i => {
+  slots.forEach((_, i) => {
     const el = document.getElementById('es' + i);
     if (el) { el.onclick = null; el.style.opacity = '0.7'; }
   });

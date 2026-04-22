@@ -45,6 +45,8 @@ function sanitizeSettings(s = {}) {
     submitSeconds: clamp(s.submitSeconds, 10, 120) || 45,
     voteSeconds: clamp(s.voteSeconds, 10, 60) || 20,
     category: VALID_CATEGORIES.includes(s.category) ? s.category : 'all',
+    emojiSlots: clamp(s.emojiSlots, 1, 10) || 3,
+    maxPlayers: clamp(s.maxPlayers, 2, 8) || 8,
   };
 }
 
@@ -105,7 +107,7 @@ app.get('/rooms/:code', (req, res) => {
   if (!room) return res.json({ exists: false });
   res.json({
     exists: true,
-    joinable: room.gameState === 'lobby' && room.players.length < 8,
+    joinable: room.gameState === 'lobby' && room.players.length < room.settings.maxPlayers,
     playerCount: room.players.length,
     gameState: room.gameState,
   });
@@ -124,7 +126,7 @@ io.on('connection', socket => {
 
     if (!player) {
       if (room.gameState !== 'lobby') return socket.emit('error', { message: 'Game already in progress' });
-      if (room.players.length >= 8) return socket.emit('error', { message: 'Room is full' });
+      if (room.players.length >= room.settings.maxPlayers) return socket.emit('error', { message: 'Room is full' });
       if (!name || !name.trim()) return socket.emit('error', { message: 'Name is required' });
       player = { id: genId(), name: name.trim().slice(0, 20), socketId: socket.id, score: 0, connected: true };
       room.players.push(player);
@@ -152,6 +154,7 @@ io.on('connection', socket => {
         submitDuration: room.settings.submitSeconds,
         roundNumber: room.roundNumber,
         totalRounds: room.settings.rounds,
+        emojiSlots: room.settings.emojiSlots,
       });
     }
   });
@@ -206,7 +209,7 @@ io.on('connection', socket => {
     if (!room?.currentRound) return;
     if (room.gameState !== 'submitting') return socket.emit('error', { message: 'Not submission phase' });
     if (room.currentRound.submissions[meta.playerId]) return socket.emit('error', { message: 'Already submitted' });
-    if (!Array.isArray(emojis) || emojis.length !== 3) return socket.emit('error', { message: 'Submit exactly 3 emojis' });
+    if (!Array.isArray(emojis) || emojis.length !== room.settings.emojiSlots) return socket.emit('error', { message: `Submit exactly ${room.settings.emojiSlots} emoji${room.settings.emojiSlots === 1 ? '' : 's'}` });
 
     room.currentRound.submissions[meta.playerId] = emojis;
     touchRoom(room);
@@ -251,7 +254,7 @@ io.on('connection', socket => {
     if (!room) return;
     if (room.hostPlayerId !== meta.playerId) return socket.emit('error', { message: 'Only the host can add bots' });
     if (room.gameState !== 'lobby') return socket.emit('error', { message: 'Can only add bots in lobby' });
-    if (room.players.length >= 8) return socket.emit('error', { message: 'Room is full' });
+    if (room.players.length >= room.settings.maxPlayers) return socket.emit('error', { message: 'Room is full' });
 
     const BOT_NAMES = ['Aria', 'Blip', 'Cleo', 'Dex', 'Echo', 'Finn', 'Gale', 'Hugo'];
     const botCount = room.players.filter(p => p.isBot).length;
@@ -264,6 +267,33 @@ io.on('connection', socket => {
       isBot: true,
     };
     room.players.push(bot);
+    touchRoom(room);
+    io.to(room.code).emit('lobby:update', lobbyPayload(room));
+  });
+
+  socket.on('lobby:settings-update', (settings) => {
+    const meta = socketMeta.get(socket.id);
+    if (!meta) return;
+    const room = rooms.get(meta.roomCode);
+    if (!room || room.hostPlayerId !== meta.playerId || room.gameState !== 'lobby') return;
+    room.settings = sanitizeSettings(settings);
+    touchRoom(room);
+    io.to(room.code).emit('lobby:update', lobbyPayload(room));
+  });
+
+  socket.on('player:kick', ({ targetPlayerId } = {}) => {
+    const meta = socketMeta.get(socket.id);
+    if (!meta) return;
+    const room = rooms.get(meta.roomCode);
+    if (!room || room.hostPlayerId !== meta.playerId) return socket.emit('error', { message: 'Only the host can kick' });
+    if (room.gameState !== 'lobby') return socket.emit('error', { message: 'Can only kick in lobby' });
+    const target = room.players.find(p => p.id === targetPlayerId);
+    if (!target || target.id === meta.playerId) return;
+    if (!target.isBot && target.socketId) {
+      const targetSock = io.sockets.sockets.get(target.socketId);
+      if (targetSock) { targetSock.emit('kicked'); targetSock.leave(room.code); socketMeta.delete(target.socketId); }
+    }
+    room.players = room.players.filter(p => p.id !== targetPlayerId);
     touchRoom(room);
     io.to(room.code).emit('lobby:update', lobbyPayload(room));
   });
@@ -306,6 +336,7 @@ function startRound(room) {
       submitDuration: room.settings.submitSeconds,
       roundNumber: room.roundNumber,
       totalRounds: room.settings.rounds,
+      emojiSlots: room.settings.emojiSlots,
     });
   });
 
@@ -332,7 +363,7 @@ function endSubmitPhase(room) {
   const submissions = activePlayers(room).map(p => ({
     playerId: p.id,
     name: playerMap[p.id],
-    emojis: room.currentRound.submissions[p.id] || ['❓', '❓', '❓'],
+    emojis: room.currentRound.submissions[p.id] || Array(room.settings.emojiSlots).fill('❓'),
   }));
 
   io.to(room.code).emit('round:all-submissions', {
@@ -491,13 +522,14 @@ async function callGemini(prompt, maxTokens = 20, temperature = 0.9) {
   }
 }
 
-async function getBotEmojis(question) {
+async function getBotEmojis(question, count = 3) {
+  const n = count === 1 ? '1 emoji' : `${count} emojis`;
   const prompt =
-    `Emoji bluff game.\n\nRules:\n- Everyone answers with exactly 3 emojis (no text).\n- One player may have a slightly different question.\n\nAnswer naturally and like a human, but keep it somewhat general so it could fit similar questions.\n\nReturn only 3 emojis.\n\nQuestion: ${question}`;
-  const text = await callGemini(prompt, 20, 0.9);
+    `Emoji bluff game.\n\nRules:\n- Everyone answers with exactly ${n} (no text).\n- One player may have a slightly different question.\n\nAnswer naturally and like a human, but keep it somewhat general so it could fit similar questions.\n\nReturn only ${n}.\n\nQuestion: ${question}`;
+  const text = await callGemini(prompt, count * 6, 0.9);
   const emojis = extractEmojis(text);
-  while (emojis.length < 3) emojis.push(randomEmoji());
-  return emojis.slice(0, 3);
+  while (emojis.length < count) emojis.push(randomEmoji());
+  return emojis.slice(0, count);
 }
 
 async function getBotVote(botId, botQuestion, submissions) {
@@ -512,10 +544,11 @@ async function getBotVote(botId, botQuestion, submissions) {
 }
 
 function scheduleBotSubmission(room, bot, question) {
+  const count = room.settings.emojiSlots || 3;
   const delay = 2000 + Math.random() * 6000;
   const t = setTimeout(async () => {
     if (!rooms.has(room.code) || room.gameState !== 'submitting') return;
-    const emojis = await getBotEmojis(question);
+    const emojis = await getBotEmojis(question, count);
     room.currentRound.submissions[bot.id] = emojis;
     touchRoom(room);
     const active = activePlayers(room);

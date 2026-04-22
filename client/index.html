@@ -84,12 +84,8 @@
       <div class="prog-fill" id="g-prog" style="width:100%;background:var(--text3)"></div>
     </div>
     <div class="q-text" id="g-q" style="margin-bottom:16px"></div>
-    <div class="e-slots" style="margin-bottom:8px">
-      <div class="e-slot active-slot" id="es0" onclick="selectSlot(0)"></div>
-      <div class="e-slot" id="es1" onclick="selectSlot(1)"></div>
-      <div class="e-slot" id="es2" onclick="selectSlot(2)"></div>
-    </div>
-    <div style="font-size:10px;color:var(--text3);text-align:center;margin-bottom:4px">tap a slot · pick an emoji · tap again to clear</div>
+    <div class="e-slots" id="e-slots-container" style="margin-bottom:8px"></div>
+    <div style="font-size:10px;color:var(--text3);text-align:center;margin-bottom:4px">tap slot to select · pick emoji · ⌫ to clear</div>
     <div style="font-size:10px;color:var(--text2);text-align:center;margin-bottom:8px;min-height:14px" id="g-submit-count"></div>
     <div class="e-kb">
       <div class="e-cats-bar" id="e-cats-bar"></div>
@@ -197,6 +193,18 @@
       <div class="settings-label">rounds per game</div>
       <input type="range" min="1" max="10" value="5" id="rounds-range" oninput="document.getElementById('rounds-val').textContent=this.value" style="width:100px">
       <span style="font-size:12px;min-width:24px;text-align:right" id="rounds-val">5</span>
+    </div>
+    <div class="sep"></div>
+    <div class="settings-row">
+      <div class="settings-label">max players</div>
+      <input type="range" min="2" max="8" value="8" id="max-players-range" oninput="document.getElementById('max-players-val').textContent=this.value" style="width:100px">
+      <span style="font-size:12px;min-width:24px;text-align:right" id="max-players-val">8</span>
+    </div>
+    <div class="sep"></div>
+    <div class="settings-row">
+      <div class="settings-label">emoji slots</div>
+      <input type="range" min="1" max="10" value="3" id="emoji-slots-range" oninput="document.getElementById('emoji-slots-val').textContent=this.value" style="width:100px">
+      <span style="font-size:12px;min-width:24px;text-align:right" id="emoji-slots-val">3</span>
     </div>
     <div class="sep"></div>
     <div class="settings-row">

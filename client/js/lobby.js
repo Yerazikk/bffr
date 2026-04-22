@@ -66,8 +66,13 @@ function playerSlotHTML(p, hostId) {
       <span style="flex:1${isMe ? ';color:var(--text)' : ''}">${isMe ? myName : p.name}</span>
       ${isHost ? '<span style="font-size:10px;color:var(--text3)">host</span>' : ''}
       ${isMe ? '<span class="pencil-btn" onclick="openNameEdit()">✏️</span>' : ''}
+      ${myIsHost && !isMe ? `<span class="kick-btn" onclick="kickPlayer('${p.id}')">✕</span>` : ''}
     </div>
   </div>`;
+}
+
+function kickPlayer(id) {
+  if (socket) socket.emit('player:kick', { targetPlayerId: id });
 }
 
 function updateRoomCodeDisplays(code) {

@@ -25,6 +25,12 @@ function connectSocket() {
 
   socket.on('lobby:update', (data) => {
     roomSettings = data.settings || roomSettings;
+    if (data.gameState === 'lobby' && currentScreen !== 'waiting-host' && currentScreen !== 'waiting-join') {
+      const isHost = data.hostPlayerId === myPlayerId;
+      goto(isHost ? 'waiting-host' : 'waiting-join');
+      updateRoomCodeDisplays(data.roomCode);
+      updateHostButtons();
+    }
     renderLobby(data);
   });
 
@@ -71,6 +77,15 @@ function connectSocket() {
   socket.on('error', ({ message }) => {
     hideLoading();
     showError(message || 'Something went wrong');
+  });
+
+  socket.on('kicked', () => {
+    myCurrentRoomCode = null;
+    myPlayerId = null;
+    myIsHost = false;
+    screenHistory = [];
+    showError('You were removed from the lobby');
+    goto('lander');
   });
 
   socket.on('room:closed', () => {

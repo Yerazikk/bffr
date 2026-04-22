@@ -6,6 +6,10 @@ function openSettings() {
   const s = roomSettings;
   document.getElementById('rounds-range').value = s.rounds;
   document.getElementById('rounds-val').textContent = s.rounds;
+  document.getElementById('max-players-range').value = s.maxPlayers || 8;
+  document.getElementById('max-players-val').textContent = s.maxPlayers || 8;
+  document.getElementById('emoji-slots-range').value = s.emojiSlots || 3;
+  document.getElementById('emoji-slots-val').textContent = s.emojiSlots || 3;
   document.getElementById('submit-range').value = s.submitSeconds;
   document.getElementById('submit-val').textContent = s.submitSeconds;
   document.getElementById('vote-range').value = s.voteSeconds;
@@ -20,7 +24,10 @@ function saveSettings() {
     submitSeconds: +document.getElementById('submit-range').value,
     voteSeconds: +document.getElementById('vote-range').value,
     category: document.getElementById('cat-select').value,
+    emojiSlots: +document.getElementById('emoji-slots-range').value,
+    maxPlayers: +document.getElementById('max-players-range').value,
   };
+  if (socket && myIsHost) socket.emit('lobby:settings-update', roomSettings);
   closeModal('modal-settings');
 }
 
