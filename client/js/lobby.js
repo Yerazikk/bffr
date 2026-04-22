@@ -83,3 +83,11 @@ function updateHostButtons() {
   const settingsBtn = document.getElementById('wh-settings-btn');
   if (settingsBtn) settingsBtn.style.display = myIsHost ? '' : 'none';
 }
+
+function exitToHome() {
+  myCurrentRoomCode = null;
+  myPlayerId = null;
+  myIsHost = false;
+  screenHistory = [];
+  goto('lander');
+}

@@ -67,6 +67,12 @@ function clearTimers(room) {
   room.timers = [];
 }
 
+const INACTIVITY_MS = 10 * 60 * 1000;
+
+function touchRoom(room) {
+  room.lastActivity = Date.now();
+}
+
 // ── HTTP ──────────────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -89,6 +95,7 @@ app.post('/rooms', (req, res) => {
     usedQuestionIds: [],
     currentRound: null,
     timers: [],
+    lastActivity: Date.now(),
   });
   res.json({ roomCode: code, playerId: hostId, isHost: true });
 });
@@ -129,6 +136,7 @@ io.on('connection', socket => {
 
     socket.join(code);
     socketMeta.set(socket.id, { roomCode: code, playerId: player.id });
+    touchRoom(room);
 
     socket.emit('self:info', { playerId: player.id, isHost: room.hostPlayerId === player.id, roomCode: code });
     io.to(code).emit('lobby:update', lobbyPayload(room));
@@ -163,6 +171,7 @@ io.on('connection', socket => {
     room.players.forEach(p => p.score = 0);
     room.roundNumber = 0;
     room.usedQuestionIds = [];
+    touchRoom(room);
     startRound(room);
   });
 
@@ -171,6 +180,7 @@ io.on('connection', socket => {
     if (!meta) return;
     const room = rooms.get(meta.roomCode);
     if (!room || room.hostPlayerId !== meta.playerId || room.gameState !== 'results') return;
+    touchRoom(room);
     startRound(room);
   });
 
@@ -185,6 +195,7 @@ io.on('connection', socket => {
     room.usedQuestionIds = [];
     room.gameState = 'lobby';
     room.currentRound = null;
+    touchRoom(room);
     io.to(room.code).emit('lobby:update', lobbyPayload(room));
   });
 
@@ -198,6 +209,7 @@ io.on('connection', socket => {
     if (!Array.isArray(emojis) || emojis.length !== 3) return socket.emit('error', { message: 'Submit exactly 3 emojis' });
 
     room.currentRound.submissions[meta.playerId] = emojis;
+    touchRoom(room);
 
     const active = activePlayers(room);
     const submitted = Object.keys(room.currentRound.submissions).length;
@@ -220,6 +232,7 @@ io.on('connection', socket => {
     if (!room.players.find(p => p.id === targetPlayerId)) return socket.emit('error', { message: 'Player not found' });
 
     room.currentRound.votes[meta.playerId] = targetPlayerId;
+    touchRoom(room);
 
     const active = activePlayers(room);
     const cast = Object.keys(room.currentRound.votes).length;
@@ -406,6 +419,22 @@ function handleLeave(socket) {
     if (voteCount >= connected.length) { clearTimers(room); endVotePhase(room); }
   }
 }
+
+// ── INACTIVITY CLEANUP ────────────────────────────────────────────────────────
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [, room] of rooms) {
+    if (room.gameState === 'closed') continue;
+    if (now - room.lastActivity > INACTIVITY_MS) {
+      clearTimers(room);
+      room.gameState = 'closed';
+      room.closedReason = 'inactivity';
+      io.to(room.code).emit('room:closed', { reason: 'inactivity' });
+      setTimeout(() => rooms.delete(room.code), 30_000);
+    }
+  }
+}, 60_000);
 
 // ── START ─────────────────────────────────────────────────────────────────────
 

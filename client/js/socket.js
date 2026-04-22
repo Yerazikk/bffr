@@ -72,4 +72,12 @@ function connectSocket() {
     hideLoading();
     showError(message || 'Something went wrong');
   });
+
+  socket.on('room:closed', () => {
+    stopCountdown();
+    myCurrentRoomCode = null;
+    myPlayerId = null;
+    myIsHost = false;
+    goto('closed');
+  });
 }
