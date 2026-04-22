@@ -82,6 +82,12 @@ function updateHostButtons() {
   if (startBtn) startBtn.style.display = myIsHost ? '' : 'none';
   const settingsBtn = document.getElementById('wh-settings-btn');
   if (settingsBtn) settingsBtn.style.display = myIsHost ? '' : 'none';
+  const botRow = document.getElementById('wh-bot-row');
+  if (botRow) botRow.style.display = myIsHost ? '' : 'none';
+}
+
+function addBot() {
+  if (socket) socket.emit('bot:add');
 }
 
 function exitToHome() {

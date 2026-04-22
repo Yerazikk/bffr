@@ -56,7 +56,7 @@ function lobbyPayload(room) {
   return {
     roomCode: room.code,
     hostPlayerId: room.hostPlayerId,
-    players: room.players.map(p => ({ id: p.id, name: p.name, score: p.score, isConnected: p.connected })),
+    players: room.players.map(p => ({ id: p.id, name: p.name, score: p.score, isConnected: p.connected, isBot: !!p.isBot })),
     settings: room.settings,
     gameState: room.gameState,
   };
@@ -244,6 +244,30 @@ io.on('connection', socket => {
     }
   });
 
+  socket.on('bot:add', () => {
+    const meta = socketMeta.get(socket.id);
+    if (!meta) return;
+    const room = rooms.get(meta.roomCode);
+    if (!room) return;
+    if (room.hostPlayerId !== meta.playerId) return socket.emit('error', { message: 'Only the host can add bots' });
+    if (room.gameState !== 'lobby') return socket.emit('error', { message: 'Can only add bots in lobby' });
+    if (room.players.length >= 8) return socket.emit('error', { message: 'Room is full' });
+
+    const BOT_NAMES = ['Aria', 'Blip', 'Cleo', 'Dex', 'Echo', 'Finn', 'Gale', 'Hugo'];
+    const botCount = room.players.filter(p => p.isBot).length;
+    const bot = {
+      id: genId(),
+      name: `${BOT_NAMES[botCount % BOT_NAMES.length]} (bot)`,
+      socketId: null,
+      score: 0,
+      connected: true,
+      isBot: true,
+    };
+    room.players.push(bot);
+    touchRoom(room);
+    io.to(room.code).emit('lobby:update', lobbyPayload(room));
+  });
+
   socket.on('disconnect', () => handleLeave(socket));
 });
 
@@ -273,6 +297,7 @@ function startRound(room) {
   room.gameState = 'submitting';
 
   active.forEach(p => {
+    if (p.isBot) return;
     const sock = io.sockets.sockets.get(p.socketId);
     if (sock) sock.emit('round:question', {
       prompt: p.id === imposter.id ? pair.imposter : pair.real,
@@ -282,6 +307,11 @@ function startRound(room) {
       roundNumber: room.roundNumber,
       totalRounds: room.settings.rounds,
     });
+  });
+
+  active.filter(p => p.isBot).forEach(bot => {
+    const q = bot.id === imposter.id ? pair.imposter : pair.real;
+    scheduleBotSubmission(room, bot, q);
   });
 
   const t = setTimeout(() => endSubmitPhase(room), room.settings.submitSeconds * 1000);
@@ -310,6 +340,13 @@ function endSubmitPhase(room) {
     realQuestion: room.currentRound.pair.real,
     voteDeadline,
     voteDuration: room.settings.voteSeconds,
+  });
+
+  activePlayers(room).filter(p => p.isBot).forEach(bot => {
+    const botQ = room.currentRound.imposterPlayerId === bot.id
+      ? room.currentRound.pair.imposter
+      : room.currentRound.pair.real;
+    scheduleBotVote(room, bot, submissions, botQ);
   });
 
   const t = setTimeout(() => endVotePhase(room), room.settings.voteSeconds * 1000);
@@ -391,9 +428,9 @@ function handleLeave(socket) {
   player.connected = false;
   player.socketId = null;
 
-  // Transfer host
+  // Transfer host (never to a bot)
   if (room.hostPlayerId === player.id) {
-    const next = room.players.find(p => p.connected);
+    const next = room.players.find(p => p.connected && !p.isBot);
     if (next) {
       room.hostPlayerId = next.id;
       const nextSock = io.sockets.sockets.get(next.socketId);
@@ -402,7 +439,8 @@ function handleLeave(socket) {
   }
 
   const connected = activePlayers(room);
-  if (connected.length === 0) {
+  const humanConnected = connected.filter(p => !p.isBot);
+  if (humanConnected.length === 0) {
     clearTimers(room);
     rooms.delete(room.code);
     return;
@@ -418,6 +456,90 @@ function handleLeave(socket) {
     const voteCount = Object.keys(room.currentRound.votes).length;
     if (voteCount >= connected.length) { clearTimers(room); endVotePhase(room); }
   }
+}
+
+// ── BOT AI ────────────────────────────────────────────────────────────────────
+
+const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
+
+function extractEmojis(text) {
+  return [...(text.match(/\p{Emoji_Presentation}/gu) || [])];
+}
+
+function randomEmoji() {
+  const pool = ['😀','😂','🙂','😎','🤔','🥳','🤩','😅','🎯','🔥','💡','🌟','⭐','🎲','🎭','🎨','🚀','🌈','💎','🦋','🌊','🎪','🍀','🌺','🐶','🐱','🐸'];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+async function callGemini(prompt, maxTokens = 20, temperature = 0.9) {
+  if (!GEMINI_KEY) return '';
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: maxTokens, temperature },
+      }),
+    });
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+  } catch {
+    return '';
+  }
+}
+
+async function getBotEmojis(question) {
+  const prompt =
+    `Emoji bluff game.\n\nRules:\n- Everyone answers with exactly 3 emojis (no text).\n- One player may have a slightly different question.\n\nAnswer naturally and like a human, but keep it somewhat general so it could fit similar questions.\n\nReturn only 3 emojis.\n\nQuestion: ${question}`;
+  const text = await callGemini(prompt, 20, 0.9);
+  const emojis = extractEmojis(text);
+  while (emojis.length < 3) emojis.push(randomEmoji());
+  return emojis.slice(0, 3);
+}
+
+async function getBotVote(botId, botQuestion, submissions) {
+  const others = submissions.filter(s => s.playerId !== botId);
+  if (!others.length) return null;
+  const playerList = others.map(s => `${s.playerId}: ${s.emojis.join(' ')}`).join('\n');
+  const prompt =
+    `You are playing an emoji bluffing game.\n\nEach player answered a question with 3 emojis.\nOne player may have received a slightly different question.\n\nYour question: ${botQuestion}\n\nPlayers:\n${playerList}\n\nYou cannot vote for yourself.\n\nVote for the player whose answer seems least consistent with your question.\nEven if you're unsure or think you might be the different one, still choose the most suspicious.\n\nReturn only the player ID.`;
+  const text = await callGemini(prompt, 20, 0.3);
+  const match = others.find(s => text.includes(s.playerId));
+  return match ? match.playerId : others[Math.floor(Math.random() * others.length)].playerId;
+}
+
+function scheduleBotSubmission(room, bot, question) {
+  const delay = 2000 + Math.random() * 6000;
+  const t = setTimeout(async () => {
+    if (!rooms.has(room.code) || room.gameState !== 'submitting') return;
+    const emojis = await getBotEmojis(question);
+    room.currentRound.submissions[bot.id] = emojis;
+    touchRoom(room);
+    const active = activePlayers(room);
+    const submitted = Object.keys(room.currentRound.submissions).length;
+    io.to(room.code).emit('round:submission-progress', { submitted, total: active.length });
+    if (submitted >= active.length) { clearTimers(room); endSubmitPhase(room); }
+  }, delay);
+  room.timers.push(t);
+}
+
+function scheduleBotVote(room, bot, submissions, botQuestion) {
+  const delay = 1000 + Math.random() * 4000;
+  const t = setTimeout(async () => {
+    if (!rooms.has(room.code) || room.gameState !== 'voting') return;
+    const targetId = await getBotVote(bot.id, botQuestion, submissions);
+    if (!targetId) return;
+    room.currentRound.votes[bot.id] = targetId;
+    touchRoom(room);
+    const active = activePlayers(room);
+    const cast = Object.keys(room.currentRound.votes).length;
+    io.to(room.code).emit('vote:progress', { votesCast: cast, totalVoters: active.length });
+    if (cast >= active.length) { clearTimers(room); endVotePhase(room); }
+  }, delay);
+  room.timers.push(t);
 }
 
 // ── INACTIVITY CLEANUP ────────────────────────────────────────────────────────
