@@ -9,4 +9,4 @@ services:
       - key: NODE_ENV
         value: production
       - key: CLIENT_URL
-        sync: false
+        value: https://bsffr.vercel.app

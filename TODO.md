@@ -28,53 +28,40 @@ npm run dev:client
 
 ## Backend (Render)
 
-- [ ] Create account at https://render.com
-- [ ] Connect your GitHub repo to Render
-- [ ] Create a new **Web Service**, set:
-  - Root Directory: `server`
-  - Build Command: `npm install`
-  - Start Command: `node server.js`
-- [ ] Add environment variable in Render dashboard:
-  - `CLIENT_URL` → your Vercel URL (e.g. `https://bsffr.vercel.app`)
-- [ ] Copy your Render URL (e.g. `https://bsffr-server.onrender.com`)
-- [ ] Paste it into `client/js/config.js`:
-  ```js
-  : 'https://YOUR-RENDER-URL.onrender.com';
-  ```
+- [x] Create account at https://render.com
+- [x] Connect your GitHub repo to Render
+- [x] Create a new Web Service (rootDir: `server`, build: `npm install`, start: `node server.js`)
+- [x] `CLIENT_URL` set to `https://bsffr.vercel.app` (in render.yaml)
+- [x] Render URL: **https://bffr.onrender.com**
+- [x] Pasted into `client/js/config.js`
 - [ ] Commit and push — Render auto-deploys on push to main
-- [ ] Test: visit `https://YOUR-RENDER-URL.onrender.com/health` → should return `{"ok":true}`
+- [ ] Test: https://bffr.onrender.com/health → should return `{"ok":true}`
 
 ---
 
 ## Frontend (Vercel)
 
-- [ ] Create account at https://vercel.com
-- [ ] Import your GitHub repo
-- [ ] Vercel will auto-detect `vercel.json` — no extra config needed
-  - `rootDirectory` is set to `client`
-  - SPA rewrite is already configured
-- [ ] Deploy — Vercel gives you a URL (e.g. `https://bsffr.vercel.app`)
-- [ ] Copy that URL → paste into Render's `CLIENT_URL` env var
+- [x] Create account at https://vercel.com
+- [x] Import your GitHub repo
+- [x] Vercel URL: **https://bsffr.vercel.app**
+- [ ] Commit and push — Vercel auto-deploys on push to main
+- [ ] Test: open https://bsffr.vercel.app in two tabs, play a full round
 
 ---
 
 ## Testing Checklist
 
-- [ ] Local: `npm run dev` → open http://localhost:3000, create lobby, join from another tab
-- [ ] Hit backend health: http://localhost:3001/health → `{"ok":true}`
-- [ ] Hit backend room create: POST http://localhost:3001/rooms with `{"name":"test"}`
-- [ ] Production: open Vercel URL in two browser tabs, play a full round
-- [ ] Production health: `https://YOUR-RENDER-URL.onrender.com/health`
+- [ ] Local: `npm run dev` → http://localhost:3000, create lobby, join from another tab
+- [ ] Production health: https://bffr.onrender.com/health → `{"ok":true}`
+- [ ] Production: open https://bsffr.vercel.app in two tabs, play a full round
 
 ---
 
-## Order to do things
+## Next step
 
-1. `npm run dev` — verify local dev works end to end
-2. Push repo to GitHub
-3. Deploy backend to Render → get Render URL
-4. Paste Render URL into `client/js/config.js`
-5. Commit + push
-6. Deploy frontend to Vercel → get Vercel URL
-7. Paste Vercel URL into Render `CLIENT_URL` env var
-8. Done
+Push to GitHub — both Render and Vercel will auto-deploy:
+```
+git add .
+git commit -m "wire up render + vercel URLs"
+git push
+```
