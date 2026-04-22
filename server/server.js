@@ -7,7 +7,7 @@ const { getRandomPair, VALID_CATEGORIES } = require('./questions');
 const app = express();
 const server = http.createServer(app);
 
-const CLIENT_ORIGIN = process.env.CLIENT_URL || '*';
+const CLIENT_ORIGIN = process.env.CLIENT_URL || 'https://bsffr.vercel.app';
 
 const io = new Server(server, {
   cors: { origin: CLIENT_ORIGIN, methods: ['GET', 'POST'] },
@@ -70,6 +70,7 @@ function clearTimers(room) {
 // ── HTTP ──────────────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/ping',   (_req, res) => res.sendStatus(200));
 
 app.post('/rooms', (req, res) => {
   const { name, settings } = req.body || {};
