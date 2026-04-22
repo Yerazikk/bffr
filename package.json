@@ -1,0 +1,13 @@
+{
+  "name": "bsffr",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\" --names server,client --prefix-colors cyan,magenta",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "serve client -p 3000 --no-clipboard"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "serve": "^14.2.3"
+  }
+}
