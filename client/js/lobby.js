@@ -96,6 +96,7 @@ function addBot() {
 }
 
 function exitToHome() {
+  clearRoomSession();
   myCurrentRoomCode = null;
   myPlayerId = null;
   myIsHost = false;

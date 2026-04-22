@@ -69,7 +69,7 @@ function clearTimers(room) {
   room.timers = [];
 }
 
-const INACTIVITY_MS = 10 * 60 * 1000;
+const INACTIVITY_MS = 60 * 60 * 1000;
 
 function touchRoom(room) {
   room.lastActivity = Date.now();
@@ -143,8 +143,9 @@ io.on('connection', socket => {
     socket.emit('self:info', { playerId: player.id, isHost: room.hostPlayerId === player.id, roomCode: code });
     io.to(code).emit('lobby:update', lobbyPayload(room));
 
-    // Rejoin mid-game: resend current question
-    if (room.gameState === 'submitting' && room.currentRound && !room.currentRound.submissions[player.id]) {
+    // Rejoin mid-game
+    if (room.gameState === 'submitting' && room.currentRound) {
+      const alreadySubmitted = !!room.currentRound.submissions[player.id];
       socket.emit('round:question', {
         prompt: room.currentRound.imposterPlayerId === player.id
           ? room.currentRound.pair.imposter
@@ -155,7 +156,29 @@ io.on('connection', socket => {
         roundNumber: room.roundNumber,
         totalRounds: room.settings.rounds,
         emojiSlots: room.settings.emojiSlots,
+        alreadySubmitted,
+        submittedEmojis: alreadySubmitted ? room.currentRound.submissions[player.id] : null,
       });
+    } else if (room.gameState === 'voting' && room.currentRound) {
+      const playerMap = Object.fromEntries(room.players.map(p => [p.id, p.name]));
+      const submissions = activePlayers(room).map(p => ({
+        playerId: p.id,
+        name: playerMap[p.id],
+        emojis: room.currentRound.submissions[p.id] || Array(room.settings.emojiSlots).fill('❓'),
+      }));
+      socket.emit('round:all-submissions', {
+        submissions,
+        realQuestion: room.currentRound.pair.real,
+        voteDeadline: room.currentRound.voteDeadline,
+        voteDuration: room.settings.voteSeconds,
+        isImposter: room.currentRound.imposterPlayerId === player.id,
+        myVote: room.currentRound.votes[player.id] || null,
+      });
+    } else if ((room.gameState === 'results' || room.gameState === 'finished') && room.lastResults) {
+      socket.emit('round:results', room.lastResults);
+      if (room.gameState === 'finished' && room.lastFinalScores) {
+        setTimeout(() => socket.emit('game:over', { finalScores: room.lastFinalScores }), 300);
+      }
     }
   });
 
@@ -418,10 +441,10 @@ function endVotePhase(room) {
   const impPlayer = room.players.find(p => p.id === imposterPlayerId);
   const isLastRound = room.roundNumber >= room.settings.rounds;
 
-  io.to(room.code).emit('round:results', {
+  room.lastResults = {
     imposterPlayerId,
     imposterName: impPlayer?.name || '?',
-    imposterEmojis: room.currentRound.submissions[imposterPlayerId] || ['❓', '❓', '❓'],
+    imposterEmojis: room.currentRound.submissions[imposterPlayerId] || Array(room.settings.emojiSlots).fill('❓'),
     realQuestion: pair.real,
     imposterQuestion: pair.imposter,
     caught,
@@ -431,15 +454,16 @@ function endVotePhase(room) {
     roundNumber: room.roundNumber,
     totalRounds: room.settings.rounds,
     isLastRound,
-  });
+  };
+  io.to(room.code).emit('round:results', room.lastResults);
 
   if (isLastRound) {
     room.gameState = 'finished';
+    const finalScores = [...room.players].sort((a, b) => b.score - a.score)
+      .map(p => ({ playerId: p.id, name: p.name, score: p.score }));
+    room.lastFinalScores = finalScores;
     const t = setTimeout(() => {
-      io.to(room.code).emit('game:over', {
-        finalScores: [...room.players].sort((a, b) => b.score - a.score)
-          .map(p => ({ playerId: p.id, name: p.name, score: p.score })),
-      });
+      io.to(room.code).emit('game:over', { finalScores });
     }, 3000);
     room.timers.push(t);
   }

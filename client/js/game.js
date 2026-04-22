@@ -16,8 +16,21 @@ function initGameFromServer(data) {
     ).join('');
   }
 
+  if (data.alreadySubmitted && data.submittedEmojis) {
+    slots = [...data.submittedEmojis];
+  }
+
   renderSlots();
   updateSubmitBtn();
+
+  if (mySubmitted) {
+    const btn = document.getElementById('g-submit');
+    if (btn) { btn.textContent = 'waiting for others...'; btn.disabled = true; btn.style.opacity = '0.5'; }
+    slots.forEach((_, i) => {
+      const el = document.getElementById('es' + i);
+      if (el) { el.onclick = null; el.style.opacity = '0.7'; }
+    });
+  }
 
   document.getElementById('round-label').textContent = `round ${data.roundNumber} of ${data.totalRounds}: in ${count} emoji${count === 1 ? '' : 's'}...`;
   document.getElementById('g-q').innerHTML = (myQuestion || '').replace(/\n/g, '<br>');

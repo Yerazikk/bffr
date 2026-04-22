@@ -88,6 +88,7 @@ function restartGame() {
 
 function endGame() {
   if (socket) socket.emit('room:leave');
+  clearRoomSession();
   myPlayerId = null; myIsHost = false; myCurrentRoomCode = null;
   currentSubmissions = null; myVote = null; mySubmitted = false;
   screenHistory = [];

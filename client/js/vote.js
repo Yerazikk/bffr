@@ -33,6 +33,16 @@ function renderVoteRows(containerId, submissions) {
   }).join('');
 }
 
+function restoreVote(targetId) {
+  myVote = targetId;
+  document.querySelectorAll('.vote-btn').forEach(btn => {
+    const id = btn.id.replace('vbtn-', '');
+    btn.textContent = id === targetId ? '✓' : '—';
+    btn.classList.add(id === targetId ? 'mine' : 'done');
+    btn.disabled = true;
+  });
+}
+
 function castVoteFor(targetId) {
   if (myVote || !socket) return;
   myVote = targetId;

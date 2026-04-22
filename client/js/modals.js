@@ -43,6 +43,7 @@ function saveName() {
   const v = document.getElementById('name-input').value.trim();
   if (v) {
     myName = v;
+    localStorage.setItem('bsffr_name', myName);
     document.querySelectorAll('#wh-plist .p-slot.me span:first-of-type, #wj-plist .p-slot.me span:first-of-type')
       .forEach(el => el.textContent = myName);
   }

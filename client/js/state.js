@@ -1,4 +1,7 @@
-let myPlayerId = null, myIsHost = false, myCurrentRoomCode = null, myName = 'Player 1';
+let myName = localStorage.getItem('bsffr_name') || 'Player 1';
+let myPlayerId = localStorage.getItem('bsffr_pid') || null;
+let myCurrentRoomCode = localStorage.getItem('bsffr_room') || null;
+let myIsHost = false;
 let myIsImposter = false, myQuestion = null, mySubmitted = false, myVote = null;
 let currentRoundNumber = 0, totalRoundsCount = 5;
 let currentSubmissions = null;

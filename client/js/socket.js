@@ -1,3 +1,8 @@
+function clearRoomSession() {
+  localStorage.removeItem('bsffr_pid');
+  localStorage.removeItem('bsffr_room');
+}
+
 function connectSocket() {
   if (socket && socket.connected) return;
   if (socket) { socket.removeAllListeners(); socket.disconnect(); }
@@ -20,6 +25,8 @@ function connectSocket() {
     myPlayerId = playerId;
     myIsHost = isHost;
     myCurrentRoomCode = roomCode;
+    localStorage.setItem('bsffr_pid', playerId);
+    localStorage.setItem('bsffr_room', roomCode);
     updateHostButtons();
   });
 
@@ -37,7 +44,7 @@ function connectSocket() {
   socket.on('round:question', (data) => {
     myIsImposter = data.isImposter;
     myQuestion = data.prompt;
-    mySubmitted = false;
+    mySubmitted = data.alreadySubmitted || false;
     myVote = null;
     currentSubmissions = null;
     currentRoundNumber = data.roundNumber;
@@ -53,9 +60,11 @@ function connectSocket() {
 
   socket.on('round:all-submissions', (data) => {
     currentSubmissions = data;
+    if (data.isImposter !== undefined) myIsImposter = data.isImposter;
     if (myIsImposter) goto('vote-imp');
     else goto('vote-inn');
     initVoteFromServer(data);
+    if (data.myVote) restoreVote(data.myVote);
   });
 
   socket.on('vote:progress', ({ votesCast, totalVoters }) => {
@@ -77,9 +86,15 @@ function connectSocket() {
   socket.on('error', ({ message }) => {
     hideLoading();
     showError(message || 'Something went wrong');
+    if (message === 'Room not found') {
+      clearRoomSession();
+      myCurrentRoomCode = null;
+      myPlayerId = null;
+    }
   });
 
   socket.on('kicked', () => {
+    clearRoomSession();
     myCurrentRoomCode = null;
     myPlayerId = null;
     myIsHost = false;
@@ -89,10 +104,17 @@ function connectSocket() {
   });
 
   socket.on('room:closed', () => {
+    clearRoomSession();
     stopCountdown();
     myCurrentRoomCode = null;
     myPlayerId = null;
     myIsHost = false;
     goto('closed');
   });
+}
+
+// Auto-rejoin on page load if a session was saved
+if (myCurrentRoomCode && myPlayerId) {
+  showLoading();
+  connectSocket();
 }
