@@ -34,7 +34,6 @@ function renderVoteRows(containerId, submissions) {
         ${answer}
       </div>
       <div class="row-right" style="${isText ? 'padding-top:8px' : ''}">
-        <div class="vote-marks" id="vmarks-${s.playerId}"></div>
         ${!isMe ? `<button class="vote-btn" id="vbtn-${s.playerId}" onclick="castVoteFor('${s.playerId}')">vote</button>` : ''}
       </div>
     </div>`;

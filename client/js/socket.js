@@ -18,7 +18,7 @@ function connectSocket() {
 
   socket.on('connect_error', () => {
     hideLoading();
-    showError('Cannot reach server. Is the backend running?', 5000);
+    showError('Cannot reach server.', 5000);
   });
 
   socket.on('self:info', ({ playerId, isHost, roomCode }) => {
@@ -78,27 +78,6 @@ function connectSocket() {
     if (el) el.textContent = `${votesCast}/${totalVoters}`;
   });
 
-  socket.on('vote:reveal', ({ votes }) => {
-    votes.forEach((v, i) => {
-      setTimeout(() => {
-        const marks = document.getElementById(`vmarks-${v.targetId}`);
-        if (!marks) return;
-        const mark = document.createElement('span');
-        mark.className = 'vote-mark';
-        mark.textContent = '✓';
-        marks.appendChild(mark);
-      }, i * 700);
-    });
-    const afterAll = votes.length * 700;
-    setTimeout(() => {
-      const actionsId = currentScreen === 'vote-imp' ? 'vi-actions' : 'vn-actions';
-      const actionsEl = document.getElementById(actionsId);
-      if (!actionsEl) return;
-      actionsEl.innerHTML = myIsHost
-        ? `<button class="btn btn-fill" style="width:100%" onclick="showResults()">see results</button>`
-        : `<div style="font-size:12px;color:var(--text2);text-align:center">waiting for host<span class="wdot">.</span><span class="wdot">.</span><span class="wdot">.</span></div>`;
-    }, afterAll);
-  });
 
   socket.on('round:results', (data) => {
     goto('results');

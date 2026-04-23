@@ -166,7 +166,7 @@ io.on('connection', socket => {
         submittedEmojis: alreadySubmitted && rMode === 'emoji' ? room.currentRound.submissions[player.id] : null,
         submittedText: alreadySubmitted && rMode !== 'emoji' ? room.currentRound.submissions[player.id] : null,
       });
-    } else if ((room.gameState === 'voting' || room.gameState === 'revealing') && room.currentRound) {
+    } else if (room.gameState === 'voting' && room.currentRound) {
       const playerMap = Object.fromEntries(room.players.map(p => [p.id, p.name]));
       const isTextModeR = (room.settings.answerMode || 'emoji') !== 'emoji';
       const submissionsR = activePlayers(room).map(p => ({
@@ -277,16 +277,6 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on('vote:show-results', () => {
-    const meta = socketMeta.get(socket.id);
-    if (!meta) return;
-    const room = rooms.get(meta.roomCode);
-    if (!room) return;
-    if (room.hostPlayerId !== meta.playerId) return;
-    if (room.gameState !== 'revealing') return;
-    endVotePhase(room);
-  });
-
   socket.on('vote:cast', ({ targetPlayerId } = {}) => {
     const meta = socketMeta.get(socket.id);
     if (!meta) return;
@@ -304,7 +294,7 @@ io.on('connection', socket => {
     const cast = Object.keys(room.currentRound.votes).length;
     io.to(room.code).emit('vote:progress', { votesCast: cast, totalVoters: active.length });
 
-    if (cast >= active.length) startRevealPhase(room);
+    if (cast >= active.length) { clearTimers(room); endVotePhase(room); }
   });
 
   socket.on('bot:add', () => {
@@ -453,22 +443,12 @@ function endSubmitPhase(room) {
     scheduleBotVote(room, bot, submissions, botQ);
   });
 
-  const t = setTimeout(() => startRevealPhase(room), room.settings.voteSeconds * 1000);
+  const t = setTimeout(() => endVotePhase(room), room.settings.voteSeconds * 1000);
   room.timers.push(t);
 }
 
-function startRevealPhase(room) {
-  if (room.gameState !== 'voting') return;
-  clearTimers(room);
-  room.gameState = 'revealing';
-  const voteList = Object.entries(room.currentRound.votes)
-    .map(([voterId, targetId]) => ({ voterId, targetId }))
-    .sort(() => Math.random() - 0.5);
-  io.to(room.code).emit('vote:reveal', { votes: voteList });
-}
-
 function endVotePhase(room) {
-  if (room.gameState !== 'voting' && room.gameState !== 'revealing') return;
+  if (room.gameState !== 'voting') return;
   clearTimers(room);
   room.gameState = 'results';
 
@@ -740,7 +720,7 @@ function scheduleBotVote(room, bot, submissions, botQuestion) {
     const active = activePlayers(room);
     const cast = Object.keys(room.currentRound.votes).length;
     io.to(room.code).emit('vote:progress', { votesCast: cast, totalVoters: active.length });
-    if (cast >= active.length) startRevealPhase(room);
+    if (cast >= active.length) { clearTimers(room); endVotePhase(room); }
   }, delay);
   room.timers.push(t);
 }

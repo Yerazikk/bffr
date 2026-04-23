@@ -189,11 +189,7 @@ body::after {
 .vote-btn:hover:not(:disabled) { background:var(--surface3); color:var(--text); }
 .vote-btn.done { color:var(--text3); border-color:var(--border); cursor:default; }
 .vote-btn.mine { color:var(--text); border-color:var(--border2); }
-.vote-btn:disabled { cursor:default; }
-.vote-marks { display:flex; gap:3px; flex-wrap:wrap; align-items:center; }
-.vote-mark { font-size:11px; color:var(--text); font-family:var(--mono); opacity:0; animation:mark-in 0.25s forwards; }
-@keyframes mark-in { from { opacity:0; transform:scale(0.5); } to { opacity:1; transform:scale(1); } }
-.badge { font-size:10px; padding:3px 8px; border-radius:100px; white-space:nowrap; font-family:var(--mono); }
+.vote-btn:disabled { cursor:default; }.badge { font-size:10px; padding:3px 8px; border-radius:100px; white-space:nowrap; font-family:var(--mono); }
 .badge-r { background:rgba(224,85,85,0.15); color:var(--red); }
 .badge-g { background:rgba(85,200,122,0.15); color:var(--green); }
 .badge-y { background:rgba(232,184,75,0.12); color:var(--yellow); }
