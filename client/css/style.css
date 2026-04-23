@@ -242,5 +242,5 @@ body::after {
 .pack-tab:hover:not(.on) { color:var(--text2); }
 #g-text-input::placeholder { color:var(--text3); }
 #g-text-input:disabled { opacity:0.6; cursor:not-allowed; }
-#custom-q-real:focus, #custom-q-imp:focus { border-color:var(--border3); }
+#custom-packs-section textarea:focus { border-color:var(--border3); }
 #custom-add-toggle:hover { background:var(--surface2) !important; color:var(--text) !important; }

@@ -42,6 +42,7 @@ function connectSocket() {
       updateHostButtons();
     }
     renderLobby(data);
+    updateHostButtons();
   });
 
   socket.on('round:question', (data) => {

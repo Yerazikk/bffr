@@ -20,7 +20,7 @@ function openSettings() {
   [0,1,2,3,4].forEach(i => { document.getElementById('custom-pack-' + i).value = packs[i] || ''; });
   switchPackTab(0);
   onAnswerModeChange(s.answerMode || 'emoji');
-  document.getElementById('custom-add-form').style.display = 'none';
+  document.getElementById('custom-packs-section').style.display = 'none';
   const toggle = document.getElementById('custom-add-toggle');
   toggle.style.background = '';
   toggle.style.color = 'var(--text2)';
@@ -41,6 +41,10 @@ function saveSettings() {
     if (packs[i].trim()) {
       const parsed = packs[i].split(/[?\n]+/).map(q => q.trim()).filter(q => q.length > 2);
       if (parsed.length % 2 !== 0) {
+        const sec = document.getElementById('custom-packs-section');
+        if (sec) sec.style.display = '';
+        const tog = document.getElementById('custom-add-toggle');
+        if (tog) { tog.style.background = 'var(--surface2)'; tog.style.color = 'var(--text)'; }
         switchPackTab(i);
         return showError(`pack ${i + 1}: questions must be in pairs — you have ${parsed.length} (need ${parsed.length + 1})`);
       }
@@ -96,28 +100,14 @@ function closeOverlay(e, id) {
 }
 
 function toggleCustomAdd() {
-  const form = document.getElementById('custom-add-form');
+  const section = document.getElementById('custom-packs-section');
   const toggle = document.getElementById('custom-add-toggle');
-  const isHidden = form.style.display === 'none';
-  form.style.display = isHidden ? '' : 'none';
+  const isHidden = section.style.display === 'none';
+  section.style.display = isHidden ? '' : 'none';
   toggle.style.background = isHidden ? 'var(--surface2)' : '';
   toggle.style.color = isHidden ? 'var(--text)' : 'var(--text2)';
-  if (isHidden) setTimeout(() => document.getElementById('custom-q-real').focus(), 50);
-}
-
-function addCustomQuestion() {
-  const real = document.getElementById('custom-q-real').value.trim();
-  const imp = document.getElementById('custom-q-imp').value.trim();
-  if (!real) return showError('real question is required');
-  if (!imp) return showError('imposter version is required');
-  const tabs = document.querySelectorAll('.pack-tab');
-  let activeIdx = 0;
-  tabs.forEach((t, i) => { if (t.classList.contains('on')) activeIdx = i; });
-  const ta = document.getElementById('custom-pack-' + activeIdx);
-  const existing = ta.value.trim();
-  ta.value = existing ? existing + '\n' + real + '\n' + imp : real + '\n' + imp;
-  document.getElementById('custom-q-real').value = '';
-  document.getElementById('custom-q-imp').value = '';
-  document.getElementById('custom-q-real').focus();
-  showToast('added to pack ' + (activeIdx + 1), 1500);
+  if (isHidden) {
+    const activeTA = document.querySelector('#custom-packs-section textarea:not([style*="display:none"])');
+    if (activeTA) setTimeout(() => activeTA.focus(), 50);
+  }
 }

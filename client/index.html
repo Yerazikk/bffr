@@ -234,10 +234,22 @@
       </select>
       <span id="custom-add-toggle" onclick="toggleCustomAdd()" style="cursor:pointer;font-size:15px;line-height:1;color:var(--text2);padding:4px 9px;border-radius:var(--r-sm);border:1px solid var(--border2);transition:all 0.15s;user-select:none;flex-shrink:0">+</span>
     </div>
-    <div id="custom-add-form" style="display:none;padding-bottom:10px">
-      <input id="custom-q-real" maxlength="200" autocomplete="off" spellcheck="false" placeholder="real question..." style="width:100%;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;margin-bottom:6px;display:block;transition:border-color 0.2s">
-      <input id="custom-q-imp" maxlength="200" autocomplete="off" spellcheck="false" placeholder="imposter version..." onkeydown="if(event.key==='Enter')addCustomQuestion()" style="width:100%;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;margin-bottom:8px;display:block;transition:border-color 0.2s">
-      <button class="btn btn-fill" style="width:100%;font-size:11px;padding:9px" onclick="addCustomQuestion()">add to pack →</button>
+    <div id="custom-packs-section" style="display:none">
+      <div style="padding:12px 0 4px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:10px;line-height:1.65">real question first, imposter version second — alternate lines · separate with ? or newline · blank packs use built-ins</div>
+        <div class="pack-tabs" id="pack-tabs">
+          <div class="pack-tab on" onclick="switchPackTab(0)">1</div>
+          <div class="pack-tab" onclick="switchPackTab(1)">2</div>
+          <div class="pack-tab" onclick="switchPackTab(2)">3</div>
+          <div class="pack-tab" onclick="switchPackTab(3)">4</div>
+          <div class="pack-tab" onclick="switchPackTab(4)">5</div>
+        </div>
+        <textarea id="custom-pack-0" maxlength="10000" placeholder="What's your ideal date night?&#10;What's your ideal dinner party?&#10;What's your dream job?&#10;What's your dream vacation?" style="width:100%;height:120px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:9px 11px;outline:none;resize:vertical;line-height:1.6;transition:border-color 0.2s" spellcheck="false"></textarea>
+        <textarea id="custom-pack-1" maxlength="10000" placeholder="What's your ideal date night?&#10;What's your ideal dinner party?" style="display:none;width:100%;height:120px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:9px 11px;outline:none;resize:vertical;line-height:1.6;transition:border-color 0.2s" spellcheck="false"></textarea>
+        <textarea id="custom-pack-2" maxlength="10000" placeholder="What's your ideal date night?&#10;What's your ideal dinner party?" style="display:none;width:100%;height:120px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:9px 11px;outline:none;resize:vertical;line-height:1.6;transition:border-color 0.2s" spellcheck="false"></textarea>
+        <textarea id="custom-pack-3" maxlength="10000" placeholder="What's your ideal date night?&#10;What's your ideal dinner party?" style="display:none;width:100%;height:120px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:9px 11px;outline:none;resize:vertical;line-height:1.6;transition:border-color 0.2s" spellcheck="false"></textarea>
+        <textarea id="custom-pack-4" maxlength="10000" placeholder="What's your ideal date night?&#10;What's your ideal dinner party?" style="display:none;width:100%;height:120px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:9px 11px;outline:none;resize:vertical;line-height:1.6;transition:border-color 0.2s" spellcheck="false"></textarea>
+      </div>
     </div>
     <div class="sep"></div>
     <div class="settings-row">
@@ -253,23 +265,6 @@
       <div class="settings-label">emoji slots</div>
       <input type="range" min="1" max="10" value="3" id="emoji-slots-range" oninput="document.getElementById('emoji-slots-val').textContent=this.value" style="width:100px">
       <span style="font-size:12px;min-width:24px;text-align:right" id="emoji-slots-val">3</span>
-    </div>
-    <div class="sep"></div>
-    <div style="margin-bottom:8px">
-      <div class="settings-label" style="margin-bottom:8px">custom question packs <span style="color:var(--text3);text-transform:none;letter-spacing:0">(optional)</span></div>
-      <div class="pack-tabs" id="pack-tabs">
-        <div class="pack-tab on" onclick="switchPackTab(0)">1</div>
-        <div class="pack-tab" onclick="switchPackTab(1)">2</div>
-        <div class="pack-tab" onclick="switchPackTab(2)">3</div>
-        <div class="pack-tab" onclick="switchPackTab(3)">4</div>
-        <div class="pack-tab" onclick="switchPackTab(4)">5</div>
-      </div>
-      <textarea id="custom-pack-0" maxlength="10000" placeholder="What's your ideal date night?&#10;What's your ideal dinner party?&#10;What's your dream job?&#10;What's your dream vacation?" style="width:100%;height:100px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;resize:vertical;line-height:1.5" spellcheck="false"></textarea>
-      <textarea id="custom-pack-1" maxlength="10000" placeholder="What's your ideal date night?&#10;What's your ideal dinner party?" style="display:none;width:100%;height:100px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;resize:vertical;line-height:1.5" spellcheck="false"></textarea>
-      <textarea id="custom-pack-2" maxlength="10000" placeholder="What's your ideal date night?&#10;What's your ideal dinner party?" style="display:none;width:100%;height:100px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;resize:vertical;line-height:1.5" spellcheck="false"></textarea>
-      <textarea id="custom-pack-3" maxlength="10000" placeholder="What's your ideal date night?&#10;What's your ideal dinner party?" style="display:none;width:100%;height:100px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;resize:vertical;line-height:1.5" spellcheck="false"></textarea>
-      <textarea id="custom-pack-4" maxlength="10000" placeholder="What's your ideal date night?&#10;What's your ideal dinner party?" style="display:none;width:100%;height:100px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;resize:vertical;line-height:1.5" spellcheck="false"></textarea>
-      <div style="font-size:10px;color:var(--text3);margin-top:4px">pairs: real then fake, alternating · separate by new line or ? · leave blank to use built-in packs</div>
     </div>
     <button class="btn btn-fill" style="width:100%;margin-top:20px" onclick="saveSettings()">save settings</button>
   </div>

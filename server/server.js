@@ -306,13 +306,16 @@ io.on('connection', socket => {
     if (!room) return;
     if (room.hostPlayerId !== meta.playerId) return socket.emit('error', { message: 'Only the host can add bots' });
     if (room.gameState !== 'lobby') return socket.emit('error', { message: 'Can only add bots in lobby' });
-    if (room.players.length >= room.settings.maxPlayers) return socket.emit('error', { message: 'Room is full' });
+    if (activePlayers(room).length >= room.settings.maxPlayers) return socket.emit('error', { message: 'Room is full' });
 
-    const BOT_NAMES = ['Aria', 'Blip', 'Cleo', 'Dex', 'Echo', 'Finn', 'Gale', 'Hugo'];
-    const botCount = room.players.filter(p => p.isBot).length;
+    const BOT_NAMES = ['Dream', 'Shlep', 'Luna', 'Flora', 'Talon', 'Elenore', 'Jim'];
+    const usedNames = room.players.filter(p => p.isBot).map(p => p.name.replace(' (bot)', ''));
+    const available = BOT_NAMES.filter(n => !usedNames.includes(n));
+    if (!available.length) return socket.emit('error', { message: 'No more bot names available' });
+    const botName = available[Math.floor(Math.random() * available.length)];
     const bot = {
       id: genId(),
-      name: `${BOT_NAMES[botCount % BOT_NAMES.length]} (bot)`,
+      name: `${botName} (bot)`,
       socketId: null,
       score: 0,
       connected: true,
@@ -592,6 +595,16 @@ function randomEmoji() {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+const BOT_PERSONAS = {
+  Dream:   'Your style: playful and ironic, slightly chaotic, expressive but clear.',
+  Shlep:   'Your style: straightforward and practical, literal interpretation, keep it simple.',
+  Luna:    'Your style: soft and demure, romantic and gentle, elegant.',
+  Flora:   'Your style: playful but grounded, light humor, mix obvious choices with one slightly unexpected one.',
+  Talon:   'Your style: cheerful and wholesome, very approachable, cute and positive.',
+  Elenore: 'Your style: thoughtful and balanced, slightly creative but not obscure.',
+  Jim:     'Your style: energetic and upbeat, a bit dramatic but still clear, bold and high-energy.',
+};
+
 async function callGemini(prompt, maxTokens = 20, temperature = 0.9) {
   if (!GEMINI_KEY) return '';
   try {
@@ -611,12 +624,13 @@ async function callGemini(prompt, maxTokens = 20, temperature = 0.9) {
   }
 }
 
-async function getBotText(question, mode) {
+async function getBotText(question, mode, botName) {
+  const persona = BOT_PERSONAS[botName] || '';
   const format = mode === 'word'
     ? 'exactly one word (no spaces, no punctuation)'
     : 'one short natural sentence under 10 words';
   const prompt = `You're in a bluffing party game. The question is: "${question}"
-Answer with ${format}. Sound like a real person. Return only the answer, nothing else.`;
+${persona ? persona + '\n' : ''}Answer with ${format}. Sound like a real person. Return only the answer, nothing else.`;
   const raw = (await callGemini(prompt, mode === 'word' ? 5 : 25, 0.9) || '').replace(/['"?!\n]/g, '').trim();
   return raw || (mode === 'word' ? 'hmm' : 'not really sure');
 }
@@ -637,10 +651,11 @@ Who seems most suspicious? Return only the player ID, nothing else.`;
   return match ? match.playerId : others[Math.floor(Math.random() * others.length)].playerId;
 }
 
-async function getBotEmojis(question, count = 3) {
+async function getBotEmojis(question, count = 3, botName) {
   const n = count === 1 ? '1 emoji' : `${count} emojis`;
+  const persona = BOT_PERSONAS[botName] || '';
   const prompt =
-    `Emoji bluff game.\n\nRules:\n- Everyone answers with exactly ${n} (no text).\n- One player may have a slightly different question.\n\nAnswer naturally and like a human, but keep it somewhat general so it could fit similar questions.\n\nReturn only ${n}.\n\nQuestion: ${question}`;
+    `Emoji bluff game.\n\nRules:\n- Everyone answers with exactly ${n} (no text).\n- One player may have a slightly different question.\n${persona ? '\n' + persona + '\n' : ''}\nAnswer naturally and like a human, but keep it somewhat general so it could fit similar questions.\n\nReturn only ${n}.\n\nQuestion: ${question}`;
   const text = await callGemini(prompt, count * 6, 0.9);
   const emojis = extractEmojis(text);
   while (emojis.length < count) emojis.push(randomEmoji());
@@ -661,12 +676,13 @@ async function getBotVote(botId, botQuestion, submissions) {
 function scheduleBotSubmission(room, bot, question) {
   const mode = room.settings.answerMode || 'emoji';
   const count = room.settings.emojiSlots || 3;
+  const name = bot.name.replace(' (bot)', '');
   const delay = 2000 + Math.random() * 6000;
   const t = setTimeout(async () => {
     if (!rooms.has(room.code) || room.gameState !== 'submitting') return;
     const answer = mode === 'emoji'
-      ? await getBotEmojis(question, count)
-      : await getBotText(question, mode);
+      ? await getBotEmojis(question, count, name)
+      : await getBotText(question, mode, name);
     room.currentRound.submissions[bot.id] = answer;
     touchRoom(room);
     const active = activePlayers(room);
