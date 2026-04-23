@@ -15,7 +15,18 @@ function openSettings() {
   document.getElementById('vote-range').value = s.voteSeconds;
   document.getElementById('vote-val').textContent = s.voteSeconds;
   document.getElementById('cat-select').value = s.category || 'all';
+  document.getElementById('answer-mode-select').value = s.answerMode || 'emoji';
+  document.getElementById('custom-q-input').value = s.customQuestions || '';
+  onAnswerModeChange(s.answerMode || 'emoji');
   document.getElementById('modal-settings').classList.add('open');
+}
+
+function onAnswerModeChange(val) {
+  const row = document.getElementById('emoji-slots-row');
+  const sep = document.getElementById('emoji-slots-sep');
+  const isEmoji = val === 'emoji';
+  if (row) row.style.display = isEmoji ? '' : 'none';
+  if (sep) sep.style.display = isEmoji ? '' : 'none';
 }
 
 function saveSettings() {
@@ -26,6 +37,8 @@ function saveSettings() {
     category: document.getElementById('cat-select').value,
     emojiSlots: +document.getElementById('emoji-slots-range').value,
     maxPlayers: +document.getElementById('max-players-range').value,
+    answerMode: document.getElementById('answer-mode-select').value,
+    customQuestions: document.getElementById('custom-q-input').value,
   };
   if (socket && myIsHost) socket.emit('lobby:settings-update', roomSettings);
   closeModal('modal-settings');

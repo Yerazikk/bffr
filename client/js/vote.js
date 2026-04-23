@@ -23,12 +23,15 @@ function renderVoteRows(containerId, submissions) {
   if (!container) return;
   container.innerHTML = submissions.map(s => {
     const isMe = s.playerId === myPlayerId;
-    const emojis = Array.isArray(s.emojis) ? s.emojis.join('') : s.emojis;
+    const isText = s.text != null;
+    const answer = isText
+      ? `<span class="vemoji" style="font-size:13px;color:var(--text2)">${s.text}</span>`
+      : `<span class="vemoji">${Array.isArray(s.emojis) ? s.emojis.join('') : (s.emojis || '')}</span>`;
     return `<div class="row-wrap">
       <div class="row-left">${isMe ? 'you →' : ''}</div>
       <div class="v-row${isMe ? ' me' : ''}">
         <span class="vname${isMe ? ' vname-hi' : ''}">${isMe ? myName : s.name}</span>
-        <span class="vemoji">${emojis}</span>
+        ${answer}
       </div>
       <div class="row-right">
         ${!isMe ? `<button class="vote-btn" id="vbtn-${s.playerId}" onclick="castVoteFor('${s.playerId}')">vote</button>` : ''}

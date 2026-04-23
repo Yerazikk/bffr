@@ -3,9 +3,10 @@ function renderRoundResults(data) {
     ? 'caught! the imposter was'
     : 'they got away. the imposter was';
 
-  const emojis = Array.isArray(data.imposterEmojis) ? data.imposterEmojis.join('') : '';
-  document.getElementById('reveal-name').innerHTML =
-    `${data.imposterName} <span style="font-size:22px">${emojis}</span>`;
+  const impAnswer = data.imposterText != null
+    ? `<span style="font-size:15px;color:var(--text2);font-family:var(--mono)">"${data.imposterText}"</span>`
+    : `<span style="font-size:22px">${Array.isArray(data.imposterEmojis) ? data.imposterEmojis.join('') : ''}</span>`;
+  document.getElementById('reveal-name').innerHTML = `${data.imposterName} ${impAnswer}`;
 
   const qr = document.getElementById('results-question-reveal');
   if (qr) qr.innerHTML =
@@ -17,7 +18,11 @@ function renderRoundResults(data) {
     const isMe = s.playerId === myPlayerId;
     const delta = (data.scoreDelta || []).find(d => d.playerId === s.playerId);
     const sub = currentSubmissions?.submissions?.find(ss => ss.playerId === s.playerId);
-    const emojisStr = sub ? (Array.isArray(sub.emojis) ? sub.emojis.join('') : sub.emojis) : '';
+    const emojisStr = sub
+      ? (sub.text != null
+          ? `<span style="font-size:11px;color:var(--text2)">"${sub.text}"</span>`
+          : (Array.isArray(sub.emojis) ? sub.emojis.join('') : (sub.emojis || '')))
+      : '';
 
     let badges = '';
     if (isImp) {

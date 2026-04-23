@@ -47,6 +47,8 @@ function sanitizeSettings(s = {}) {
     category: VALID_CATEGORIES.includes(s.category) ? s.category : 'all',
     emojiSlots: clamp(s.emojiSlots, 1, 10) || 3,
     maxPlayers: clamp(s.maxPlayers, 2, 8) || 8,
+    answerMode: ['emoji', 'word', 'sentence'].includes(s.answerMode) ? s.answerMode : 'emoji',
+    customQuestions: typeof s.customQuestions === 'string' ? s.customQuestions.slice(0, 5000) : '',
   };
 }
 
@@ -146,28 +148,32 @@ io.on('connection', socket => {
     // Rejoin mid-game
     if (room.gameState === 'submitting' && room.currentRound) {
       const alreadySubmitted = !!room.currentRound.submissions[player.id];
+      const isImpR = room.currentRound.imposterPlayerId === player.id;
+      const rMode = room.settings.answerMode || 'emoji';
       socket.emit('round:question', {
-        prompt: room.currentRound.imposterPlayerId === player.id
-          ? room.currentRound.pair.imposter
-          : room.currentRound.pair.real,
-        isImposter: room.currentRound.imposterPlayerId === player.id,
+        prompt: isImpR ? room.currentRound.pair.imposter : room.currentRound.pair.real,
+        isImposter: isImpR,
         submitDeadline: room.currentRound.submitDeadline,
         submitDuration: room.settings.submitSeconds,
         roundNumber: room.roundNumber,
         totalRounds: room.settings.rounds,
         emojiSlots: room.settings.emojiSlots,
+        answerMode: rMode,
         alreadySubmitted,
-        submittedEmojis: alreadySubmitted ? room.currentRound.submissions[player.id] : null,
+        submittedEmojis: alreadySubmitted && rMode === 'emoji' ? room.currentRound.submissions[player.id] : null,
+        submittedText: alreadySubmitted && rMode !== 'emoji' ? room.currentRound.submissions[player.id] : null,
       });
     } else if (room.gameState === 'voting' && room.currentRound) {
       const playerMap = Object.fromEntries(room.players.map(p => [p.id, p.name]));
-      const submissions = activePlayers(room).map(p => ({
+      const isTextModeR = (room.settings.answerMode || 'emoji') !== 'emoji';
+      const submissionsR = activePlayers(room).map(p => ({
         playerId: p.id,
         name: playerMap[p.id],
-        emojis: room.currentRound.submissions[p.id] || Array(room.settings.emojiSlots).fill('❓'),
+        emojis: isTextModeR ? null : (room.currentRound.submissions[p.id] || Array(room.settings.emojiSlots).fill('❓')),
+        text: isTextModeR ? (room.currentRound.submissions[p.id] || '?') : null,
       }));
       socket.emit('round:all-submissions', {
-        submissions,
+        submissions: submissionsR,
         realQuestion: room.currentRound.pair.real,
         voteDeadline: room.currentRound.voteDeadline,
         voteDuration: room.settings.voteSeconds,
@@ -184,7 +190,7 @@ io.on('connection', socket => {
 
   socket.on('room:leave', () => handleLeave(socket));
 
-  socket.on('game:start', ({ settings } = {}) => {
+  socket.on('game:start', async ({ settings } = {}) => {
     const meta = socketMeta.get(socket.id);
     if (!meta) return;
     const room = rooms.get(meta.roomCode);
@@ -201,13 +207,13 @@ io.on('connection', socket => {
     startRound(room);
   });
 
-  socket.on('game:next-round', () => {
+  socket.on('game:next-round', async () => {
     const meta = socketMeta.get(socket.id);
     if (!meta) return;
     const room = rooms.get(meta.roomCode);
     if (!room || room.hostPlayerId !== meta.playerId || room.gameState !== 'results') return;
     touchRoom(room);
-    startRound(room);
+    await startRound(room);
   });
 
   socket.on('game:restart', () => {
@@ -238,16 +244,24 @@ io.on('connection', socket => {
     io.to(room.code).emit('game:over', { finalScores });
   });
 
-  socket.on('round:submit', ({ emojis } = {}) => {
+  socket.on('round:submit', ({ emojis, text } = {}) => {
     const meta = socketMeta.get(socket.id);
     if (!meta) return;
     const room = rooms.get(meta.roomCode);
     if (!room?.currentRound) return;
     if (room.gameState !== 'submitting') return socket.emit('error', { message: 'Not submission phase' });
     if (room.currentRound.submissions[meta.playerId]) return socket.emit('error', { message: 'Already submitted' });
-    if (!Array.isArray(emojis) || emojis.length !== room.settings.emojiSlots) return socket.emit('error', { message: `Submit exactly ${room.settings.emojiSlots} emoji${room.settings.emojiSlots === 1 ? '' : 's'}` });
 
-    room.currentRound.submissions[meta.playerId] = emojis;
+    const mode = room.settings.answerMode || 'emoji';
+    if (mode === 'emoji') {
+      if (!Array.isArray(emojis) || emojis.length !== room.settings.emojiSlots) return socket.emit('error', { message: `Submit exactly ${room.settings.emojiSlots} emoji${room.settings.emojiSlots === 1 ? '' : 's'}` });
+      room.currentRound.submissions[meta.playerId] = emojis;
+    } else {
+      const answer = typeof text === 'string' ? text.trim().slice(0, 100) : '';
+      if (!answer) return socket.emit('error', { message: 'Answer cannot be empty' });
+      if (mode === 'word' && /\s/.test(answer)) return socket.emit('error', { message: 'Word mode: one word only' });
+      room.currentRound.submissions[meta.playerId] = answer;
+    }
     touchRoom(room);
 
     const active = activePlayers(room);
@@ -339,12 +353,22 @@ io.on('connection', socket => {
 
 // ── GAME LOGIC ────────────────────────────────────────────────────────────────
 
-function startRound(room) {
+async function startRound(room) {
   clearTimers(room);
   room.roundNumber++;
 
-  const pair = getRandomPair(room.usedQuestionIds, room.settings.category);
-  room.usedQuestionIds.push(pair.id);
+  let pair;
+  const customQs = parseCustomQuestions(room.settings.customQuestions);
+  if (customQs.length > 0) {
+    const idx = (room.roundNumber - 1) % customQs.length;
+    const realQ = customQs[idx];
+    const imposterQ = await getImposterVariant(realQ);
+    if (!rooms.has(room.code)) return;
+    pair = { id: `custom-${idx}`, real: realQ, imposter: imposterQ };
+  } else {
+    pair = getRandomPair(room.usedQuestionIds, room.settings.category);
+    room.usedQuestionIds.push(pair.id);
+  }
 
   const active = activePlayers(room);
   const imposter = active[Math.floor(Math.random() * active.length)];
@@ -373,6 +397,7 @@ function startRound(room) {
       roundNumber: room.roundNumber,
       totalRounds: room.settings.rounds,
       emojiSlots: room.settings.emojiSlots,
+      answerMode: room.settings.answerMode || 'emoji',
     });
   });
 
@@ -395,11 +420,13 @@ function endSubmitPhase(room) {
 
   const playerMap = Object.fromEntries(room.players.map(p => [p.id, p.name]));
 
-  // Build submissions list — give ❓ to anyone who didn't submit
+  // Build submissions list — give placeholder to anyone who didn't submit
+  const isTextMode = (room.settings.answerMode || 'emoji') !== 'emoji';
   const submissions = activePlayers(room).map(p => ({
     playerId: p.id,
     name: playerMap[p.id],
-    emojis: room.currentRound.submissions[p.id] || Array(room.settings.emojiSlots).fill('❓'),
+    emojis: isTextMode ? null : (room.currentRound.submissions[p.id] || Array(room.settings.emojiSlots).fill('❓')),
+    text: isTextMode ? (room.currentRound.submissions[p.id] || '?') : null,
   }));
 
   io.to(room.code).emit('round:all-submissions', {
@@ -458,10 +485,13 @@ function endVotePhase(room) {
   const impPlayer = room.players.find(p => p.id === imposterPlayerId);
   const isLastRound = room.roundNumber >= room.settings.rounds;
 
+  const isTextModeV = (room.settings.answerMode || 'emoji') !== 'emoji';
+  const impSub = room.currentRound.submissions[imposterPlayerId];
   room.lastResults = {
     imposterPlayerId,
     imposterName: impPlayer?.name || '?',
-    imposterEmojis: room.currentRound.submissions[imposterPlayerId] || Array(room.settings.emojiSlots).fill('❓'),
+    imposterEmojis: isTextModeV ? null : (impSub || Array(room.settings.emojiSlots).fill('❓')),
+    imposterText: isTextModeV ? impSub : null,
     realQuestion: pair.real,
     imposterQuestion: pair.imposter,
     caught,
@@ -531,6 +561,16 @@ function handleLeave(socket) {
   }
 }
 
+// ── CUSTOM QUESTION HELPERS ───────────────────────────────────────────────────
+
+function parseCustomQuestions(raw) {
+  if (!raw || typeof raw !== 'string') return [];
+  return raw.split(/[?\n]+/)
+    .map(q => q.trim())
+    .filter(q => q.length > 2)
+    .map(q => q + '?');
+}
+
 // ── BOT AI ────────────────────────────────────────────────────────────────────
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
@@ -564,6 +604,41 @@ async function callGemini(prompt, maxTokens = 20, temperature = 0.9) {
   }
 }
 
+async function getImposterVariant(realQuestion) {
+  const prompt = `Party game: everyone answers the same question, but one player (the imposter) gets a slightly different version.
+
+Real question: "${realQuestion}"
+
+Write a subtly different version — same topic and vibe, but slightly off so answers will differ a little. Keep it as a natural question. Return only the question, no extra text.`;
+  return (await callGemini(prompt, 30, 0.7)) || realQuestion;
+}
+
+async function getBotText(question, mode) {
+  const format = mode === 'word'
+    ? 'exactly one word (no spaces, no punctuation)'
+    : 'one short natural sentence under 10 words';
+  const prompt = `You're in a bluffing party game. The question is: "${question}"
+Answer with ${format}. Sound like a real person. Return only the answer, nothing else.`;
+  const raw = (await callGemini(prompt, mode === 'word' ? 5 : 25, 0.9) || '').replace(/['"?!\n]/g, '').trim();
+  return raw || (mode === 'word' ? 'hmm' : 'not really sure');
+}
+
+async function getBotTextVote(botId, botQuestion, submissions) {
+  const others = submissions.filter(s => s.playerId !== botId);
+  if (!others.length) return null;
+  const list = others.map(s => `${s.playerId}: "${s.text}"`).join('\n');
+  const prompt = `Bluffing game. The question was: "${botQuestion}"
+One player received a slightly different question — their answer may seem off.
+
+Player answers:
+${list}
+
+Who seems most suspicious? Return only the player ID, nothing else.`;
+  const text = await callGemini(prompt, 20, 0.3);
+  const match = others.find(s => text.includes(s.playerId));
+  return match ? match.playerId : others[Math.floor(Math.random() * others.length)].playerId;
+}
+
 async function getBotEmojis(question, count = 3) {
   const n = count === 1 ? '1 emoji' : `${count} emojis`;
   const prompt =
@@ -586,12 +661,15 @@ async function getBotVote(botId, botQuestion, submissions) {
 }
 
 function scheduleBotSubmission(room, bot, question) {
+  const mode = room.settings.answerMode || 'emoji';
   const count = room.settings.emojiSlots || 3;
   const delay = 2000 + Math.random() * 6000;
   const t = setTimeout(async () => {
     if (!rooms.has(room.code) || room.gameState !== 'submitting') return;
-    const emojis = await getBotEmojis(question, count);
-    room.currentRound.submissions[bot.id] = emojis;
+    const answer = mode === 'emoji'
+      ? await getBotEmojis(question, count)
+      : await getBotText(question, mode);
+    room.currentRound.submissions[bot.id] = answer;
     touchRoom(room);
     const active = activePlayers(room);
     const submitted = Object.keys(room.currentRound.submissions).length;
@@ -602,10 +680,13 @@ function scheduleBotSubmission(room, bot, question) {
 }
 
 function scheduleBotVote(room, bot, submissions, botQuestion) {
+  const mode = room.settings.answerMode || 'emoji';
   const delay = 1000 + Math.random() * 4000;
   const t = setTimeout(async () => {
     if (!rooms.has(room.code) || room.gameState !== 'voting') return;
-    const targetId = await getBotVote(bot.id, botQuestion, submissions);
+    const targetId = mode === 'emoji'
+      ? await getBotVote(bot.id, botQuestion, submissions)
+      : await getBotTextVote(bot.id, botQuestion, submissions);
     if (!targetId) return;
     room.currentRound.votes[bot.id] = targetId;
     touchRoom(room);

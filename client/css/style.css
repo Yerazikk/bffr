@@ -232,3 +232,7 @@ body::after {
   transition:border-color 0.2s; margin-top:16px; margin-bottom:16px;
 }
 .name-input:focus { border-color:var(--border3); }
+#g-text-input:focus { border-color:var(--border3); }
+#g-text-input::placeholder { color:var(--text3); }
+#g-text-input:disabled { opacity:0.6; cursor:not-allowed; }
+#custom-q-input:focus { outline:none; border-color:var(--border3); }

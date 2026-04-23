@@ -31,7 +31,9 @@ function connectSocket() {
   });
 
   socket.on('lobby:update', (data) => {
-    roomSettings = data.settings || roomSettings;
+    if (data.settings) {
+      roomSettings = { ...roomSettings, ...data.settings };
+    }
     humanPlayerCount = (data.players || []).filter(p => !p.isBot).length;
     if (data.gameState === 'lobby' && currentScreen !== 'waiting-host' && currentScreen !== 'waiting-join') {
       const isHost = data.hostPlayerId === myPlayerId;
@@ -45,6 +47,7 @@ function connectSocket() {
   socket.on('round:question', (data) => {
     myIsImposter = data.isImposter;
     myQuestion = data.prompt;
+    myAnswerMode = data.answerMode || 'emoji';
     mySubmitted = data.alreadySubmitted || false;
     myVote = null;
     currentSubmissions = null;
