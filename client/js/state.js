@@ -6,6 +6,7 @@ let myIsImposter = false, myQuestion = null, mySubmitted = false, myVote = null;
 let currentRoundNumber = 0, totalRoundsCount = 5;
 let currentSubmissions = null;
 let roomSettings = { rounds: 5, submitSeconds: 45, voteSeconds: 20, category: 'all', emojiSlots: 3, maxPlayers: 8 };
+let humanPlayerCount = 1;
 let nameModalCallback = null;
 let socket = null, countdownId = null;
 let currentScreen = 'lander', screenHistory = [];

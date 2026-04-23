@@ -19,35 +19,39 @@ function renderRoundResults(data) {
     const sub = currentSubmissions?.submissions?.find(ss => ss.playerId === s.playerId);
     const emojisStr = sub ? (Array.isArray(sub.emojis) ? sub.emojis.join('') : sub.emojis) : '';
 
-    let badge = '';
+    let badges = '';
     if (isImp) {
-      badge = data.caught ? '<span class="badge badge-r">caught</span>' : '<span class="badge badge-g">+2 got away</span>';
+      if (data.caught) badges += '<span class="badge badge-r">caught</span> ';
+      const d = delta?.delta || 0;
+      badges += d > 0 ? `<span class="badge badge-g">+${d}</span>` : '<span class="badge badge-y">±0</span>';
     } else if (delta?.delta > 0) {
-      badge = `<span class="badge badge-g">+${delta.delta}</span>`;
+      badges = `<span class="badge badge-g">+${delta.delta}</span>`;
     } else {
-      badge = '<span class="badge badge-y">±0</span>';
+      badges = '<span class="badge badge-y">±0</span>';
     }
 
-    return `<div class="v-row${isImp ? ' imposter' : ''}${isMe ? ' me' : ''}" style="animation-delay:${i * 0.08 + 0.1}s">
-      ${isMe ? '<span style="font-size:10px;color:var(--text3);margin-right:2px">you →</span>' : ''}
-      <span class="vname${isMe || isImp ? '" style="color:var(--text)' : ''}">${isMe ? myName : s.name}</span>
-      <span class="vemoji">${emojisStr}</span>
-      ${badge}
+    return `<div class="row-wrap" style="animation-delay:${i * 0.08 + 0.1}s">
+      <div class="row-left">${isMe ? 'you →' : ''}</div>
+      <div class="v-row${isImp ? ' imposter' : ''}${isMe ? ' me' : ''}">
+        <span class="vname${isMe || isImp ? ' vname-hi' : ''}">${isMe ? myName : s.name}</span>
+        <span class="vemoji">${emojisStr}</span>
+      </div>
+      <div class="row-right">${badges}</div>
     </div>`;
   }).join('');
 
   const actionsDiv = document.getElementById('results-actions');
   if (!actionsDiv) return;
 
+  const endBtn = humanPlayerCount > 1 ? '' : '<button class="btn" onclick="endGame()">end game</button>';
+
   if (data.isLastRound) {
     actionsDiv.innerHTML = myIsHost
-      ? `<button class="btn btn-fill" style="flex:1" onclick="restartGame()">play again</button>
-         <button class="btn" onclick="endGame()">end game</button>`
+      ? `<button class="btn btn-fill" style="flex:1" onclick="restartGame()">play again</button>${endBtn}`
       : `<div style="font-size:12px;color:var(--text2);padding:10px 0">waiting for host<span class="wdot">.</span><span class="wdot">.</span><span class="wdot">.</span></div>`;
   } else {
     actionsDiv.innerHTML = myIsHost
-      ? `<button class="btn btn-fill" style="flex:1" onclick="nextRound()">next round →</button>
-         <button class="btn" onclick="endGame()">end game</button>`
+      ? `<button class="btn btn-fill" style="flex:1" onclick="nextRound()">next round →</button>${endBtn}`
       : `<div style="font-size:12px;color:var(--text2);padding:10px 0">waiting for host<span class="wdot">.</span><span class="wdot">.</span><span class="wdot">.</span></div>`;
   }
 }
@@ -61,10 +65,12 @@ function renderGameOver(finalScores) {
   document.getElementById('results-rows').innerHTML = (finalScores || []).map((s, i) => {
     const isMe = s.playerId === myPlayerId;
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
-    return `<div class="v-row${isMe ? ' me' : ''}" style="animation-delay:${i * 0.1}s">
-      ${isMe ? '<span style="font-size:10px;color:var(--text3);margin-right:2px">you →</span>' : ''}
-      <span class="vname${isMe ? '" style="color:var(--text)' : ''}">${medal} ${isMe ? myName : s.name}</span>
-      <span class="badge badge-y">${s.score} pts</span>
+    return `<div class="row-wrap" style="animation-delay:${i * 0.1}s">
+      <div class="row-left">${isMe ? 'you →' : ''}</div>
+      <div class="v-row${isMe ? ' me' : ''}">
+        <span class="vname${isMe ? ' vname-hi' : ''}">${medal} ${isMe ? myName : s.name}</span>
+      </div>
+      <div class="row-right"><span class="badge badge-y">${s.score} pts</span></div>
     </div>`;
   }).join('');
 
@@ -72,8 +78,8 @@ function renderGameOver(finalScores) {
   if (!actionsDiv) return;
   actionsDiv.innerHTML = myIsHost
     ? `<button class="btn btn-fill" style="flex:1" onclick="restartGame()">play again</button>
-       <button class="btn" onclick="endGame()">end game</button>`
-    : `<div style="font-size:12px;color:var(--text2);padding:10px 0">waiting for host<span class="wdot">.</span><span class="wdot">.</span><span class="wdot">.</span></div>`;
+       <button class="btn" onclick="leaveGame()">go home</button>`
+    : `<button class="btn" onclick="leaveGame()">go home</button>`;
 }
 
 function nextRound() {
@@ -87,10 +93,16 @@ function restartGame() {
 }
 
 function endGame() {
+  if (!socket || !myIsHost) return;
+  socket.emit('game:force-end');
+}
+
+function leaveGame() {
   if (socket) socket.emit('room:leave');
   clearRoomSession();
   myPlayerId = null; myIsHost = false; myCurrentRoomCode = null;
   currentSubmissions = null; myVote = null; mySubmitted = false;
+  humanPlayerCount = 1;
   screenHistory = [];
   goto('lander');
 }

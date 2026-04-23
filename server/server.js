@@ -225,6 +225,19 @@ io.on('connection', socket => {
     io.to(room.code).emit('lobby:update', lobbyPayload(room));
   });
 
+  socket.on('game:force-end', () => {
+    const meta = socketMeta.get(socket.id);
+    if (!meta) return;
+    const room = rooms.get(meta.roomCode);
+    if (!room || room.hostPlayerId !== meta.playerId) return;
+    clearTimers(room);
+    room.gameState = 'finished';
+    const finalScores = [...room.players].sort((a, b) => b.score - a.score)
+      .map(p => ({ playerId: p.id, name: p.name, score: p.score }));
+    room.lastFinalScores = finalScores;
+    io.to(room.code).emit('game:over', { finalScores });
+  });
+
   socket.on('round:submit', ({ emojis } = {}) => {
     const meta = socketMeta.get(socket.id);
     if (!meta) return;
@@ -427,10 +440,14 @@ function endVotePhase(room) {
   const caught = mostVotedId === imposterPlayerId;
   const scoreDelta = [];
 
+  // Count how many non-imposter players did NOT vote for the imposter
+  const nonImposters = room.players.filter(p => p.id !== imposterPlayerId);
+  const fooledCount = nonImposters.filter(p => votes[p.id] !== imposterPlayerId).length;
+
   room.players.forEach(p => {
     let delta = 0;
     if (p.id === imposterPlayerId) {
-      delta = caught ? 0 : 2;
+      delta = fooledCount; // +1 per fooled player
     } else if (votes[p.id] === imposterPlayerId) {
       delta = 1;
     }
@@ -454,6 +471,7 @@ function endVotePhase(room) {
     roundNumber: room.roundNumber,
     totalRounds: room.settings.rounds,
     isLastRound,
+    humanCount: room.players.filter(p => !p.isBot).length,
   };
   io.to(room.code).emit('round:results', room.lastResults);
 

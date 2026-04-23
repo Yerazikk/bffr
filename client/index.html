@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>be so fucking for real</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕵️</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./css/style.css">
@@ -14,8 +15,8 @@
 <!-- LANDER -->
 <div class="screen active" id="s-lander">
   <div style="text-align:center">
-    <div class="display">be so <em>fucking</em><br>for real</div>
-    <div style="font-size:11px;color:var(--text3);letter-spacing:0.12em;margin-top:14px">the emoji bluffing game</div>
+    <div class="display">be so fucking<br>for real</div>
+    <div style="font-size:11px;color:var(--text3);letter-spacing:0.12em;margin-top:14px">a game of emojis and espionage.</div>
     <div style="display:flex;gap:10px;justify-content:center;margin-top:44px">
       <button class="btn btn-fill" onclick="startCreateFlow()">create lobby</button>
       <button class="btn" onclick="goto('join')">join lobby</button>
@@ -43,7 +44,7 @@
     <div style="text-align:center;margin-bottom:22px">
       <div class="qlabel" style="margin-bottom:10px">room code</div>
       <div class="room-code-display" id="wh-code" style="font-size:44px">---</div>
-      <div class="room-url" id="wh-url">share this code with friends</div>
+      <button class="btn btn-ghost" style="font-size:10px;margin-top:6px;padding:5px 14px" onclick="copyCode()">copy code</button>
     </div>
     <div class="qlabel" style="margin-bottom:10px;margin-left:42px">players</div>
     <div class="p-list" id="wh-plist"></div>
@@ -65,6 +66,7 @@
     <div style="text-align:center;margin-bottom:22px">
       <div class="qlabel" style="margin-bottom:10px">room code</div>
       <div class="room-code-display" id="wj-code" style="font-size:44px">---</div>
+      <button class="btn btn-ghost" style="font-size:10px;margin-top:6px;padding:5px 14px" onclick="copyCode()">copy code</button>
     </div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:16px;display:flex;align-items:center;gap:3px">
       waiting for host to start<span class="wdot">.</span><span class="wdot">.</span><span class="wdot">.</span>
@@ -87,7 +89,8 @@
     <div class="e-slots" id="e-slots-container" style="margin-bottom:8px"></div>
     <div style="font-size:10px;color:var(--text3);text-align:center;margin-bottom:4px">tap slot to select · pick emoji · ⌫ to clear</div>
     <div style="font-size:10px;color:var(--text2);text-align:center;margin-bottom:8px;min-height:14px" id="g-submit-count"></div>
-    <div class="e-kb">
+    <div class="e-kb" id="e-kb">
+      <div class="e-kb-handle" id="e-kb-handle"></div>
       <div class="e-cats-bar" id="e-cats-bar"></div>
       <div class="e-search">
         <span class="e-search-icon">🔍</span>
@@ -179,7 +182,7 @@
     <div class="m-rule"><div class="m-num">01</div><div class="m-txt">everyone answers the same question — except <em>one player</em> gets a similar but different one.</div></div>
     <div class="m-rule"><div class="m-num">02</div><div class="m-txt">each player responds with <em>exactly 3 emojis.</em> no words.</div></div>
     <div class="m-rule"><div class="m-num">03</div><div class="m-txt">vote for who you think got the <em>different question.</em></div></div>
-    <div class="m-rule"><div class="m-num">04</div><div class="m-txt">imposter scores <em>+2 for not getting caught.</em> innocents score <em>+1 for a correct vote.</em></div></div>
+    <div class="m-rule"><div class="m-num">04</div><div class="m-txt">imposter scores <em>+1 for each player they fool.</em> innocents score <em>+1 for a correct vote.</em></div></div>
     <button class="btn btn-fill" style="width:100%;margin-top:16px" onclick="closeModal('modal-rules')">got it</button>
   </div>
 </div>

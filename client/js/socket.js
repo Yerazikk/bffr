@@ -32,6 +32,7 @@ function connectSocket() {
 
   socket.on('lobby:update', (data) => {
     roomSettings = data.settings || roomSettings;
+    humanPlayerCount = (data.players || []).filter(p => !p.isBot).length;
     if (data.gameState === 'lobby' && currentScreen !== 'waiting-host' && currentScreen !== 'waiting-join') {
       const isHost = data.hostPlayerId === myPlayerId;
       goto(isHost ? 'waiting-host' : 'waiting-join');

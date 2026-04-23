@@ -25,6 +25,17 @@ function showError(msg, duration = 3000) {
   const el = document.getElementById('error-toast');
   if (!el) return;
   el.textContent = msg;
+  el.style.background = 'rgba(224,85,85,0.92)';
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0'; }, duration);
+}
+
+function showToast(msg, duration = 2000) {
+  const el = document.getElementById('error-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.background = 'rgba(50,50,50,0.95)';
   el.style.opacity = '1';
   clearTimeout(el._t);
   el._t = setTimeout(() => { el.style.opacity = '0'; }, duration);

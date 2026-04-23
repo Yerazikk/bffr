@@ -60,9 +60,16 @@ function setCat(cat, el) {
 }
 
 function searchEmoji(q) {
-  if (!q.trim()) { renderGrid(CATS[currentCat]); return; }
-  const results = ALL.filter(e => e.startsWith(q) || q.split('').some(c => e.includes(c)));
-  renderGrid(results.length ? results : ALL.slice(0, 80));
+  const term = q.trim().toLowerCase();
+  if (!term) { renderGrid(CATS[currentCat]); return; }
+  const exact = ALL.filter(e => {
+    const kw = EMOJI_KEYWORDS[e] || '';
+    return kw.split(' ').some(w => w.startsWith(term));
+  });
+  if (exact.length) { renderGrid(exact); return; }
+  // fallback: any keyword contains the term
+  const partial = ALL.filter(e => (EMOJI_KEYWORDS[e] || '').includes(term));
+  renderGrid(partial.length ? partial : CATS[currentCat]);
 }
 
 function renderGrid(list) {
@@ -143,3 +150,42 @@ function submitEmojis() {
     if (el) { el.onclick = null; el.style.opacity = '0.7'; }
   });
 }
+
+// Drag-to-resize emoji keyboard panel
+(function initEmojiKbDrag() {
+  let dragStartY = null, startGridH = null;
+  const MIN_H = 100, MAX_H = 400;
+
+  function getGrid() { return document.querySelector('#e-kb .e-grid'); }
+
+  function onStart(y) {
+    const grid = getGrid();
+    if (!grid) return;
+    dragStartY = y;
+    startGridH = grid.offsetHeight;
+  }
+
+  function onMove(y) {
+    if (dragStartY === null) return;
+    const grid = getGrid();
+    if (!grid) return;
+    const delta = dragStartY - y;
+    grid.style.maxHeight = Math.min(MAX_H, Math.max(MIN_H, startGridH + delta)) + 'px';
+  }
+
+  function onEnd() { dragStartY = null; }
+
+  document.addEventListener('mousedown', e => {
+    if (e.target.id === 'e-kb-handle') { e.preventDefault(); onStart(e.clientY); }
+  });
+  document.addEventListener('mousemove', e => onMove(e.clientY));
+  document.addEventListener('mouseup', onEnd);
+
+  document.addEventListener('touchstart', e => {
+    if (e.target.id === 'e-kb-handle') { e.preventDefault(); onStart(e.touches[0].clientY); }
+  }, { passive: false });
+  document.addEventListener('touchmove', e => {
+    if (dragStartY !== null) { e.preventDefault(); onMove(e.touches[0].clientY); }
+  }, { passive: false });
+  document.addEventListener('touchend', onEnd);
+})();

@@ -59,13 +59,15 @@ function renderLobby(data) {
 function playerSlotHTML(p, hostId) {
   const isMe = p.id === myPlayerId;
   const isHost = p.id === hostId;
-  return `<div style="display:flex;align-items:center;gap:10px">
-    <span style="font-size:11px;${isMe ? 'color:var(--text3)' : 'color:transparent'};white-space:nowrap;letter-spacing:0.04em;user-select:none">you →</span>
+  const nameEl = isMe
+    ? `<span style="flex:1;color:var(--text);cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" onclick="openNameEdit()">${myName}</span>`
+    : `<span style="flex:1">${p.name}</span>`;
+  return `<div class="row-wrap">
+    <div class="row-left">${isMe ? 'you →' : ''}</div>
     <div class="p-slot${isMe ? ' me' : ''}" style="flex:1">
       <div class="dot${p.isConnected ? ' on' : ''}"></div>
-      <span style="flex:1${isMe ? ';color:var(--text)' : ''}">${isMe ? myName : p.name}</span>
+      ${nameEl}
       ${isHost ? '<span style="font-size:10px;color:var(--text3)">host</span>' : ''}
-      ${isMe ? '<span class="pencil-btn" onclick="openNameEdit()">✏️</span>' : ''}
       ${myIsHost && !isMe ? `<span class="kick-btn" onclick="kickPlayer('${p.id}')">✕</span>` : ''}
     </div>
   </div>`;
@@ -73,6 +75,14 @@ function playerSlotHTML(p, hostId) {
 
 function kickPlayer(id) {
   if (socket) socket.emit('player:kick', { targetPlayerId: id });
+}
+
+function copyCode() {
+  const code = myCurrentRoomCode || '';
+  if (!code) return;
+  navigator.clipboard.writeText(code)
+    .then(() => showToast('copied!', 1500))
+    .catch(() => showError('could not copy'));
 }
 
 function updateRoomCodeDisplays(code) {
@@ -100,6 +110,7 @@ function exitToHome() {
   myCurrentRoomCode = null;
   myPlayerId = null;
   myIsHost = false;
+  humanPlayerCount = 1;
   screenHistory = [];
   goto('lander');
 }
