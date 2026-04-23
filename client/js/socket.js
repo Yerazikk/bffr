@@ -78,6 +78,20 @@ function connectSocket() {
     if (el) el.textContent = `${votesCast}/${totalVoters}`;
   });
 
+  socket.on('vote:reveal', ({ votes }) => {
+    document.querySelectorAll('.vote-btn').forEach(btn => btn.style.display = 'none');
+    votes.forEach((v, i) => {
+      setTimeout(() => {
+        const marks = document.getElementById(`vmarks-${v.targetId}`);
+        if (!marks) return;
+        const mark = document.createElement('span');
+        mark.className = 'vote-mark';
+        mark.textContent = '✓';
+        marks.appendChild(mark);
+      }, i * 700);
+    });
+  });
+
   socket.on('round:results', (data) => {
     goto('results');
     renderRoundResults(data);
