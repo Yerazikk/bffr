@@ -230,7 +230,14 @@
         <option value="work">work</option>
         <option value="social">social</option>
         <option value="food">food</option>
+        <option value="custom">all custom</option>
       </select>
+      <span id="custom-add-toggle" onclick="toggleCustomAdd()" style="cursor:pointer;font-size:15px;line-height:1;color:var(--text2);padding:4px 9px;border-radius:var(--r-sm);border:1px solid var(--border2);transition:all 0.15s;user-select:none;flex-shrink:0">+</span>
+    </div>
+    <div id="custom-add-form" style="display:none;padding-bottom:10px">
+      <input id="custom-q-real" maxlength="200" autocomplete="off" spellcheck="false" placeholder="real question..." style="width:100%;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;margin-bottom:6px;display:block;transition:border-color 0.2s">
+      <input id="custom-q-imp" maxlength="200" autocomplete="off" spellcheck="false" placeholder="imposter version..." onkeydown="if(event.key==='Enter')addCustomQuestion()" style="width:100%;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;margin-bottom:8px;display:block;transition:border-color 0.2s">
+      <button class="btn btn-fill" style="width:100%;font-size:11px;padding:9px" onclick="addCustomQuestion()">add to pack →</button>
     </div>
     <div class="sep"></div>
     <div class="settings-row">

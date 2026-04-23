@@ -70,7 +70,7 @@ const QUESTION_PAIRS = [
   { id: 'q60', category: 'food', real: "How do you feel about trying new cuisines?", imposter: "How do you feel about trying new restaurants?" },
 ];
 
-const VALID_CATEGORIES = ['all', 'romance', 'lifestyle', 'work', 'social', 'food'];
+const VALID_CATEGORIES = ['all', 'romance', 'lifestyle', 'work', 'social', 'food', 'custom'];
 
 function getRandomPair(usedIds = [], category = 'all') {
   let pool = category === 'all' ? QUESTION_PAIRS : QUESTION_PAIRS.filter(q => q.category === category);

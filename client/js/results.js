@@ -18,9 +18,10 @@ function renderRoundResults(data) {
     const isMe = s.playerId === myPlayerId;
     const delta = (data.scoreDelta || []).find(d => d.playerId === s.playerId);
     const sub = currentSubmissions?.submissions?.find(ss => ss.playerId === s.playerId);
+    const isTextAnswer = sub?.text != null;
     const emojisStr = sub
-      ? (sub.text != null
-          ? `<span style="font-size:11px;color:var(--text2)">"${sub.text}"</span>`
+      ? (isTextAnswer
+          ? `<span style="font-size:11px;color:var(--text2);word-break:break-word;white-space:normal;line-height:1.45;width:100%">"${sub.text}"</span>`
           : (Array.isArray(sub.emojis) ? sub.emojis.join('') : (sub.emojis || '')))
       : '';
 
@@ -35,13 +36,13 @@ function renderRoundResults(data) {
       badges = '<span class="badge badge-y">±0</span>';
     }
 
-    return `<div class="row-wrap" style="animation-delay:${i * 0.08 + 0.1}s">
-      <div class="row-left">${isMe ? 'you →' : ''}</div>
-      <div class="v-row${isImp ? ' imposter' : ''}${isMe ? ' me' : ''}">
+    return `<div class="row-wrap" style="animation-delay:${i * 0.08 + 0.1}s${isTextAnswer ? ';align-items:flex-start' : ''}">
+      <div class="row-left" style="${isTextAnswer ? 'padding-top:11px' : ''}">${isMe ? 'you →' : ''}</div>
+      <div class="v-row${isTextAnswer ? ' v-text' : ''}${isImp ? ' imposter' : ''}${isMe ? ' me' : ''}">
         <span class="vname${isMe || isImp ? ' vname-hi' : ''}">${isMe ? myName : s.name}</span>
-        <span class="vemoji">${emojisStr}</span>
+        ${isTextAnswer ? emojisStr : `<span class="vemoji">${emojisStr}</span>`}
       </div>
-      <div class="row-right">${badges}</div>
+      <div class="row-right" style="${isTextAnswer ? 'padding-top:8px' : ''}">${badges}</div>
     </div>`;
   }).join('');
 
