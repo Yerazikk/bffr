@@ -88,6 +88,11 @@ function renderGameOver(finalScores) {
     : `<button class="btn" onclick="leaveGame()">go home</button>`;
 }
 
+function showResults() {
+  if (!socket || !myIsHost) return;
+  socket.emit('vote:show-results');
+}
+
 function nextRound() {
   if (!socket || !myIsHost) return;
   socket.emit('game:next-round');

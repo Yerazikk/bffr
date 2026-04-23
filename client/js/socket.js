@@ -79,7 +79,6 @@ function connectSocket() {
   });
 
   socket.on('vote:reveal', ({ votes }) => {
-    document.querySelectorAll('.vote-btn').forEach(btn => btn.style.display = 'none');
     votes.forEach((v, i) => {
       setTimeout(() => {
         const marks = document.getElementById(`vmarks-${v.targetId}`);
@@ -90,6 +89,15 @@ function connectSocket() {
         marks.appendChild(mark);
       }, i * 700);
     });
+    const afterAll = votes.length * 700;
+    setTimeout(() => {
+      const actionsId = currentScreen === 'vote-imp' ? 'vi-actions' : 'vn-actions';
+      const actionsEl = document.getElementById(actionsId);
+      if (!actionsEl) return;
+      actionsEl.innerHTML = myIsHost
+        ? `<button class="btn btn-fill" style="width:100%" onclick="showResults()">see results</button>`
+        : `<div style="font-size:12px;color:var(--text2);text-align:center">waiting for host<span class="wdot">.</span><span class="wdot">.</span><span class="wdot">.</span></div>`;
+    }, afterAll);
   });
 
   socket.on('round:results', (data) => {

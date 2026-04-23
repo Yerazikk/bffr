@@ -138,6 +138,7 @@ io.on('connection', socket => {
       player.socketId = socket.id;
       player.connected = true;
       if (name && name.trim()) player.name = name.trim().slice(0, 20);
+      if (player._hostTimer) { clearTimeout(player._hostTimer); player._hostTimer = null; }
     }
 
     socket.join(code);
@@ -190,7 +191,7 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on('room:leave', () => handleLeave(socket));
+  socket.on('room:leave', () => handleLeave(socket, true));
 
   socket.on('game:start', async ({ settings } = {}) => {
     const meta = socketMeta.get(socket.id);
@@ -276,6 +277,16 @@ io.on('connection', socket => {
     }
   });
 
+  socket.on('vote:show-results', () => {
+    const meta = socketMeta.get(socket.id);
+    if (!meta) return;
+    const room = rooms.get(meta.roomCode);
+    if (!room) return;
+    if (room.hostPlayerId !== meta.playerId) return;
+    if (room.gameState !== 'revealing') return;
+    endVotePhase(room);
+  });
+
   socket.on('vote:cast', ({ targetPlayerId } = {}) => {
     const meta = socketMeta.get(socket.id);
     if (!meta) return;
@@ -350,7 +361,7 @@ io.on('connection', socket => {
     io.to(room.code).emit('lobby:update', lobbyPayload(room));
   });
 
-  socket.on('disconnect', () => handleLeave(socket));
+  socket.on('disconnect', () => handleLeave(socket, false));
 });
 
 // ── GAME LOGIC ────────────────────────────────────────────────────────────────
@@ -454,8 +465,6 @@ function startRevealPhase(room) {
     .map(([voterId, targetId]) => ({ voterId, targetId }))
     .sort(() => Math.random() - 0.5);
   io.to(room.code).emit('vote:reveal', { votes: voteList });
-  const t = setTimeout(() => endVotePhase(room), voteList.length * 700 + 2000);
-  room.timers.push(t);
 }
 
 function endVotePhase(room) {
@@ -528,7 +537,16 @@ function endVotePhase(room) {
   }
 }
 
-function handleLeave(socket) {
+function transferHost(room, fromPlayer) {
+  const next = room.players.find(p => p.connected && !p.isBot && p.id !== fromPlayer.id);
+  if (next) {
+    room.hostPlayerId = next.id;
+    const nextSock = io.sockets.sockets.get(next.socketId);
+    if (nextSock) nextSock.emit('self:info', { playerId: next.id, isHost: true, roomCode: room.code });
+  }
+}
+
+function handleLeave(socket, graceful = false) {
   const meta = socketMeta.get(socket.id);
   if (!meta) return;
   socketMeta.delete(socket.id);
@@ -544,11 +562,15 @@ function handleLeave(socket) {
 
   // Transfer host (never to a bot)
   if (room.hostPlayerId === player.id) {
-    const next = room.players.find(p => p.connected && !p.isBot);
-    if (next) {
-      room.hostPlayerId = next.id;
-      const nextSock = io.sockets.sockets.get(next.socketId);
-      if (nextSock) nextSock.emit('self:info', { playerId: next.id, isHost: true, roomCode: room.code });
+    if (graceful) {
+      if (player._hostTimer) { clearTimeout(player._hostTimer); player._hostTimer = null; }
+      transferHost(room, player);
+    } else {
+      // Grace period: give the player 5s to reconnect before transferring host
+      player._hostTimer = setTimeout(() => {
+        player._hostTimer = null;
+        if (room.hostPlayerId === player.id) transferHost(room, player);
+      }, 5000);
     }
   }
 
