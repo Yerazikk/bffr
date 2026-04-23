@@ -626,12 +626,13 @@ async function callGemini(prompt, maxTokens = 20, temperature = 0.9) {
 
 async function getBotText(question, mode, botName) {
   const persona = BOT_PERSONAS[botName] || '';
+  const seed = Math.random().toString(36).slice(2, 6);
   const format = mode === 'word'
     ? 'exactly one word (no spaces, no punctuation)'
     : 'one short natural sentence under 10 words';
-  const prompt = `You're in a bluffing party game. The question is: "${question}"
+  const prompt = `[${seed}] You're in a bluffing party game. The question is: "${question}"
 ${persona ? persona + '\n' : ''}Answer with ${format}. Sound like a real person. Return only the answer, nothing else.`;
-  const raw = (await callGemini(prompt, mode === 'word' ? 5 : 25, 0.9) || '').replace(/['"?!\n]/g, '').trim();
+  const raw = (await callGemini(prompt, mode === 'word' ? 5 : 25, 1.2) || '').replace(/['"?!\n]/g, '').trim();
   return raw || (mode === 'word' ? 'hmm' : 'not really sure');
 }
 
@@ -654,9 +655,10 @@ Who seems most suspicious? Return only the player ID, nothing else.`;
 async function getBotEmojis(question, count = 3, botName) {
   const n = count === 1 ? '1 emoji' : `${count} emojis`;
   const persona = BOT_PERSONAS[botName] || '';
+  const seed = Math.random().toString(36).slice(2, 6);
   const prompt =
-    `Emoji bluff game.\n\nRules:\n- Everyone answers with exactly ${n} (no text).\n- One player may have a slightly different question.\n${persona ? '\n' + persona + '\n' : ''}\nAnswer naturally and like a human, but keep it somewhat general so it could fit similar questions.\n\nReturn only ${n}.\n\nQuestion: ${question}`;
-  const text = await callGemini(prompt, count * 6, 0.9);
+    `[${seed}] Emoji bluff game.\n\nRules:\n- Everyone answers with exactly ${n} (no text).\n- One player may have a slightly different question.\n${persona ? '\n' + persona + '\n' : ''}\nAnswer naturally and like a human, but keep it somewhat general so it could fit similar questions.\n\nReturn only ${n}.\n\nQuestion: ${question}`;
+  const text = await callGemini(prompt, count * 6, 1.2);
   const emojis = extractEmojis(text);
   while (emojis.length < count) emojis.push(randomEmoji());
   return emojis.slice(0, count);
@@ -677,7 +679,7 @@ function scheduleBotSubmission(room, bot, question) {
   const mode = room.settings.answerMode || 'emoji';
   const count = room.settings.emojiSlots || 3;
   const name = bot.name.replace(' (bot)', '');
-  const delay = 2000 + Math.random() * 6000;
+  const delay = 1000 + Math.random() * 1000;
   const t = setTimeout(async () => {
     if (!rooms.has(room.code) || room.gameState !== 'submitting') return;
     const answer = mode === 'emoji'
@@ -695,7 +697,7 @@ function scheduleBotSubmission(room, bot, question) {
 
 function scheduleBotVote(room, bot, submissions, botQuestion) {
   const mode = room.settings.answerMode || 'emoji';
-  const delay = 1000 + Math.random() * 4000;
+  const delay = 1000 + Math.random() * 1000;
   const t = setTimeout(async () => {
     if (!rooms.has(room.code) || room.gameState !== 'voting') return;
     const targetId = mode === 'emoji'

@@ -25,7 +25,7 @@ function renderVoteRows(containerId, submissions) {
     const isMe = s.playerId === myPlayerId;
     const isText = s.text != null;
     const answer = isText
-      ? `<span style="font-size:12px;color:var(--text2);word-break:break-word;white-space:normal;line-height:1.45;width:100%">${s.text}</span>`
+      ? `<span style="font-size:12px;color:#fff;word-break:break-word;white-space:normal;line-height:1.45;width:100%">${s.text}</span>`
       : `<span class="vemoji">${Array.isArray(s.emojis) ? s.emojis.join('') : (s.emojis || '')}</span>`;
     return `<div class="row-wrap" style="${isText ? 'align-items:flex-start' : ''}">
       <div class="row-left" style="${isText ? 'padding-top:11px' : ''}">${isMe ? 'you →' : ''}</div>
