@@ -16,7 +16,9 @@ function openSettings() {
   document.getElementById('vote-val').textContent = s.voteSeconds;
   document.getElementById('cat-select').value = s.category || 'all';
   document.getElementById('answer-mode-select').value = s.answerMode || 'emoji';
-  document.getElementById('custom-q-input').value = s.customQuestions || '';
+  const packs = s.customPacks || ['','','','',''];
+  [0,1,2,3,4].forEach(i => { document.getElementById('custom-pack-' + i).value = packs[i] || ''; });
+  switchPackTab(0);
   onAnswerModeChange(s.answerMode || 'emoji');
   document.getElementById('modal-settings').classList.add('open');
 }
@@ -30,6 +32,16 @@ function onAnswerModeChange(val) {
 }
 
 function saveSettings() {
+  const packs = [0,1,2,3,4].map(i => document.getElementById('custom-pack-' + i).value);
+  for (let i = 0; i < packs.length; i++) {
+    if (packs[i].trim()) {
+      const parsed = packs[i].split(/[?\n]+/).map(q => q.trim()).filter(q => q.length > 2);
+      if (parsed.length % 2 !== 0) {
+        switchPackTab(i);
+        return showError(`pack ${i + 1}: questions must be in pairs — you have ${parsed.length} (need ${parsed.length + 1})`);
+      }
+    }
+  }
   roomSettings = {
     rounds: +document.getElementById('rounds-range').value,
     submitSeconds: +document.getElementById('submit-range').value,
@@ -38,10 +50,17 @@ function saveSettings() {
     emojiSlots: +document.getElementById('emoji-slots-range').value,
     maxPlayers: +document.getElementById('max-players-range').value,
     answerMode: document.getElementById('answer-mode-select').value,
-    customQuestions: document.getElementById('custom-q-input').value,
+    customPacks: packs,
   };
   if (socket && myIsHost) socket.emit('lobby:settings-update', roomSettings);
   closeModal('modal-settings');
+}
+
+function switchPackTab(n) {
+  [0,1,2,3,4].forEach(i => {
+    document.getElementById('custom-pack-' + i).style.display = i === n ? '' : 'none';
+  });
+  document.querySelectorAll('.pack-tab').forEach((el, i) => el.classList.toggle('on', i === n));
 }
 
 function openNameEdit(callback) {

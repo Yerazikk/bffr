@@ -48,7 +48,9 @@ function sanitizeSettings(s = {}) {
     emojiSlots: clamp(s.emojiSlots, 1, 10) || 3,
     maxPlayers: clamp(s.maxPlayers, 2, 8) || 8,
     answerMode: ['emoji', 'word', 'sentence'].includes(s.answerMode) ? s.answerMode : 'emoji',
-    customQuestions: typeof s.customQuestions === 'string' ? s.customQuestions.slice(0, 5000) : '',
+    customPacks: Array.isArray(s.customPacks)
+      ? s.customPacks.slice(0, 5).map(p => typeof p === 'string' ? p.slice(0, 10000) : '')
+      : ['', '', '', '', ''],
   };
 }
 
@@ -358,13 +360,10 @@ async function startRound(room) {
   room.roundNumber++;
 
   let pair;
-  const customQs = parseCustomQuestions(room.settings.customQuestions);
-  if (customQs.length > 0) {
-    const idx = (room.roundNumber - 1) % customQs.length;
-    const realQ = customQs[idx];
-    const imposterQ = await getImposterVariant(realQ);
-    if (!rooms.has(room.code)) return;
-    pair = { id: `custom-${idx}`, real: realQ, imposter: imposterQ };
+  const customPairs = parseCustomPacks(room.settings.customPacks);
+  if (customPairs.length > 0) {
+    const idx = (room.roundNumber - 1) % customPairs.length;
+    pair = { id: `custom-${idx}`, ...customPairs[idx] };
   } else {
     pair = getRandomPair(room.usedQuestionIds, room.settings.category);
     room.usedQuestionIds.push(pair.id);
@@ -563,12 +562,20 @@ function handleLeave(socket) {
 
 // ── CUSTOM QUESTION HELPERS ───────────────────────────────────────────────────
 
-function parseCustomQuestions(raw) {
-  if (!raw || typeof raw !== 'string') return [];
-  return raw.split(/[?\n]+/)
-    .map(q => q.trim())
-    .filter(q => q.length > 2)
-    .map(q => q + '?');
+function parseCustomPacks(packs) {
+  if (!Array.isArray(packs)) return [];
+  const pairs = [];
+  for (const raw of packs) {
+    if (!raw || typeof raw !== 'string') continue;
+    const qs = raw.split(/[?\n]+/)
+      .map(q => q.trim().slice(0, 200))
+      .filter(q => q.length > 2)
+      .map(q => q + '?');
+    for (let i = 0; i + 1 < qs.length; i += 2) {
+      pairs.push({ real: qs[i], imposter: qs[i + 1] });
+    }
+  }
+  return pairs;
 }
 
 // ── BOT AI ────────────────────────────────────────────────────────────────────
@@ -602,15 +609,6 @@ async function callGemini(prompt, maxTokens = 20, temperature = 0.9) {
   } catch {
     return '';
   }
-}
-
-async function getImposterVariant(realQuestion) {
-  const prompt = `Party game: everyone answers the same question, but one player (the imposter) gets a slightly different version.
-
-Real question: "${realQuestion}"
-
-Write a subtly different version — same topic and vibe, but slightly off so answers will differ a little. Keep it as a natural question. Return only the question, no extra text.`;
-  return (await callGemini(prompt, 30, 0.7)) || realQuestion;
 }
 
 async function getBotText(question, mode) {

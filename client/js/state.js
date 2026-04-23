@@ -5,7 +5,7 @@ let myIsHost = false;
 let myIsImposter = false, myQuestion = null, mySubmitted = false, myVote = null;
 let currentRoundNumber = 0, totalRoundsCount = 5;
 let currentSubmissions = null;
-let roomSettings = { rounds: 5, submitSeconds: 45, voteSeconds: 20, category: 'all', emojiSlots: 3, maxPlayers: 8, answerMode: 'emoji', customQuestions: '' };
+let roomSettings = { rounds: 5, submitSeconds: 45, voteSeconds: 20, category: 'all', emojiSlots: 3, maxPlayers: 8, answerMode: 'emoji', customPacks: ['','','','',''] };
 let myAnswerMode = 'emoji';
 let humanPlayerCount = 1;
 let nameModalCallback = null;

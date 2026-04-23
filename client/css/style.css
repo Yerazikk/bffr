@@ -233,6 +233,10 @@ body::after {
 }
 .name-input:focus { border-color:var(--border3); }
 #g-text-input:focus { border-color:var(--border3); }
+.pack-tabs { display:flex; gap:4px; margin-bottom:6px; }
+.pack-tab { padding:4px 12px; border-radius:var(--r-sm); font-size:11px; cursor:pointer; background:var(--surface3); border:1px solid var(--border); color:var(--text3); transition:all 0.15s; user-select:none; }
+.pack-tab.on { background:var(--surface2); border-color:var(--border2); color:var(--text); }
+.pack-tab:hover:not(.on) { color:var(--text2); }
 #g-text-input::placeholder { color:var(--text3); }
 #g-text-input:disabled { opacity:0.6; cursor:not-allowed; }
 #custom-q-input:focus { outline:none; border-color:var(--border3); }
