@@ -49,15 +49,18 @@
     </div>
     <div class="qlabel" style="margin-bottom:10px;margin-left:42px">players</div>
     <div class="p-list" id="wh-plist"></div>
-    <div style="height:16px"></div>
+    <div id="wh-bot-row">
+      <div class="row-wrap" onclick="addBot()" style="cursor:pointer;margin-top:0">
+        <div class="row-left"></div>
+        <div class="p-slot" style="flex:1;cursor:pointer;justify-content:center;color:var(--text3);border-style:dashed">+ add bot player</div>
+      </div>
+    </div>
+    <div style="height:12px"></div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-fill" id="wh-start-btn" style="flex:1;opacity:0.4;cursor:not-allowed" onclick="handleStartGame()" disabled>start game</button>
       <button class="btn" id="wh-settings-btn" onclick="openSettings()">settings</button>
     </div>
-    <div style="margin-top:8px" id="wh-bot-row">
-      <button class="btn" id="wh-bot-btn" style="width:100%;font-size:11px" onclick="addBot()">+ add bot player</button>
-    </div>
-    <div id="wh-min-msg" style="font-size:10px;color:var(--text3);text-align:center;margin-top:8px">need at least 2 players</div>
+    <div id="wh-min-msg" style="font-size:10px;color:var(--text3);text-align:center;margin-top:8px">add a bot to start</div>
   </div>
 </div>
 
@@ -108,6 +111,7 @@
       </div>
     </div>
     <button class="btn btn-fill" id="g-submit" style="width:100%;margin-top:12px;opacity:0.3;cursor:not-allowed" onclick="submitAnswer()" disabled>submit answer →</button>
+    <div id="g-change-hint" style="display:none;text-align:center;margin-top:6px;font-size:10px;color:var(--text3)">answer submitted — <span style="text-decoration:underline;cursor:pointer" onclick="changeAnswer()">change it?</span></div>
   </div>
 </div>
 
@@ -155,6 +159,16 @@
     <div class="sep" style="margin-bottom:16px"></div>
     <div class="p-list" id="results-rows"></div>
     <div style="margin-top:20px;display:flex;gap:8px" id="results-actions"></div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div class="screen" id="s-gameover">
+  <div class="w">
+    <div class="reveal-who" id="go-title">game over</div>
+    <div class="sep" style="margin-bottom:16px"></div>
+    <div class="p-list" id="go-rows"></div>
+    <div style="margin-top:20px;display:flex;gap:8px" id="go-actions"></div>
   </div>
 </div>
 
@@ -209,7 +223,7 @@
     <div class="sep"></div>
     <div class="settings-row">
       <div class="settings-label">max players</div>
-      <input type="range" min="2" max="8" value="8" id="max-players-range" oninput="document.getElementById('max-players-val').textContent=this.value" style="width:100px">
+      <input type="range" min="3" max="8" value="8" id="max-players-range" oninput="document.getElementById('max-players-val').textContent=this.value" style="width:100px">
       <span style="font-size:12px;min-width:24px;text-align:right" id="max-players-val">8</span>
     </div>
     <div class="sep"></div>

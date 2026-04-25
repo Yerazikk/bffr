@@ -23,6 +23,7 @@ async function createLobby() {
 
     goto('waiting-host');
     updateRoomCodeDisplays(data.roomCode);
+    history.pushState(null, '', '/' + data.roomCode);
     hideLoading();
   } catch {
     hideLoading();
@@ -47,6 +48,7 @@ async function validateAndJoin(code) {
       else socket.once('connect', doJoin);
       goto('waiting-join');
       updateRoomCodeDisplays(code);
+      history.pushState(null, '', '/' + code);
     });
   } catch {
     hideLoading();

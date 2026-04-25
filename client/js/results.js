@@ -63,12 +63,7 @@ function renderRoundResults(data) {
 }
 
 function renderGameOver(finalScores) {
-  document.getElementById('reveal-who').textContent = 'game over';
-  document.getElementById('reveal-name').textContent = '';
-  const qr = document.getElementById('results-question-reveal');
-  if (qr) qr.textContent = '';
-
-  document.getElementById('results-rows').innerHTML = (finalScores || []).map((s, i) => {
+  document.getElementById('go-rows').innerHTML = (finalScores || []).map((s, i) => {
     const isMe = s.playerId === myPlayerId;
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
     return `<div class="row-wrap" style="animation-delay:${i * 0.1}s">
@@ -80,12 +75,12 @@ function renderGameOver(finalScores) {
     </div>`;
   }).join('');
 
-  const actionsDiv = document.getElementById('results-actions');
+  const actionsDiv = document.getElementById('go-actions');
   if (!actionsDiv) return;
   actionsDiv.innerHTML = myIsHost
     ? `<button class="btn btn-fill" style="flex:1" onclick="restartGame()">play again</button>
        <button class="btn" onclick="leaveGame()">go home</button>`
-    : `<button class="btn" onclick="leaveGame()">go home</button>`;
+    : `<button class="btn btn-fill" style="flex:1" onclick="leaveGame()">go home</button>`;
 }
 
 function nextRound() {
@@ -110,5 +105,6 @@ function leaveGame() {
   currentSubmissions = null; myVote = null; mySubmitted = false;
   humanPlayerCount = 1;
   screenHistory = [];
+  history.replaceState(null, '', '/');
   goto('lander');
 }

@@ -44,20 +44,22 @@ function restoreVote(targetId) {
   myVote = targetId;
   document.querySelectorAll('.vote-btn').forEach(btn => {
     const id = btn.id.replace('vbtn-', '');
-    btn.textContent = id === targetId ? '✓' : '—';
-    btn.classList.add(id === targetId ? 'mine' : 'done');
-    btn.disabled = true;
+    btn.textContent = id === targetId ? '✓' : 'vote';
+    btn.classList.toggle('mine', id === targetId);
+    btn.classList.remove('done');
+    btn.disabled = false;
   });
 }
 
 function castVoteFor(targetId) {
-  if (myVote || !socket) return;
+  if (!socket) return;
   myVote = targetId;
   document.querySelectorAll('.vote-btn').forEach(btn => {
     const id = btn.id.replace('vbtn-', '');
-    btn.textContent = id === targetId ? '✓' : '—';
-    btn.classList.add(id === targetId ? 'mine' : 'done');
-    btn.disabled = true;
+    btn.textContent = id === targetId ? '✓' : 'vote';
+    btn.classList.toggle('mine', id === targetId);
+    btn.classList.remove('done');
+    btn.disabled = false;
   });
   socket.emit('vote:cast', { targetPlayerId: targetId });
 }

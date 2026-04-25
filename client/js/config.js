@@ -22,7 +22,9 @@ const CATS = {
   '🧠': ['🧠','💊','💉','🩺','🩹','🩻','🩼','🦽','🦼','🧬','🔬','🔭','🧪','🧫','🧲','⚗️','🏥','👨‍⚕️','👩‍⚕️','👨‍🏫','👩‍🏫','👨‍🎨','👩‍🎨','👨‍💻','👩‍💻','👨‍🍳','👩‍🍳','👨‍🚀','👩‍🚀','👨‍✈️','👩‍✈️','🕵️','👮','💂','👷','🧑‍🚒','🧑‍🎤','🧑‍🎨','🧑‍🔬','🧑‍🏭','🧑‍💼','🧑‍🔧','🧑‍🌾','🧑‍🍳','🧑‍🏫','🧑‍⚕️','🧑‍🚀','🧑‍⚖️','🧙','🧚','🧛','🧜','🧝','🧞','🧟','🧌'],
 };
 
-const ALL = Object.values(CATS).flat();
+// Deduplicate within each category, then build a globally unique pool
+Object.keys(CATS).forEach(k => { CATS[k] = [...new Set(CATS[k])]; });
+const ALL = [...new Set(Object.values(CATS).flat())];
 const QLABEL = {
   '😀':'faces','👋':'people','🐶':'nature','🍎':'food & drink',
   '⚽':'activity','🚗':'travel','💡':'objects','❤️':'symbols',
@@ -74,7 +76,7 @@ const EMOJI_KEYWORDS = {
   '🐶':'dog puppy pet animal','🐱':'cat kitten pet animal','🐭':'mouse animal rodent',
   '🐹':'hamster animal cute','🐰':'rabbit bunny hop','🦊':'fox clever animal',
   '🐻':'bear animal forest','🐼':'panda bear cute bamboo','🐨':'koala australia marsupial',
-  '🐯':'tiger animal striped','🦁':'lion king safari','🐮':'cow moo farm animal',
+  '🐯':'tiger animal striped','🦁':'lion king safari wild','🐮':'cow moo farm animal',
   '🐷':'pig oink farm animal','🐸':'frog green jump ribbit','🐵':'monkey ape face animal',
   '🙈':'see no evil monkey','🙉':'hear no evil monkey','🙊':'speak no evil monkey',
   '🦋':'butterfly insect colorful wings','🐛':'bug caterpillar worm insect',
@@ -83,7 +85,7 @@ const EMOJI_KEYWORDS = {
   '🦎':'lizard reptile chameleon','🐙':'octopus tentacles ocean sea',
   '🦑':'squid tentacles ocean sea','🦀':'crab red seafood ocean','🐡':'blowfish puffer ocean fish',
   '🐠':'tropical fish clownfish nemo','🐟':'fish blue ocean sea','🐬':'dolphin ocean mammal jump',
-  '🐳':'whale ocean blue spout','🦈':'shark ocean danger predator','🦁':'lion king wild safari',
+  '🐳':'whale ocean blue spout','🦈':'shark ocean danger predator',
   '🐘':'elephant trunk big animal safari','🦒':'giraffe tall neck safari',
   '🐕':'dog pet animal loyal','🐈':'cat pet animal meow','🌵':'cactus desert plant',
   '🌲':'evergreen tree forest pine','🌳':'tree deciduous forest nature',

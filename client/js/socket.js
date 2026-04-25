@@ -61,6 +61,8 @@ function connectSocket() {
   socket.on('round:submission-progress', ({ submitted, total }) => {
     const el = document.getElementById('g-submit-count');
     if (el) el.textContent = `${submitted}/${total} submitted`;
+    // Hide "change answer" if all others have submitted (player is the last one)
+    if (mySubmitted && submitted >= total - 1) hideChangeAnswerHint();
   });
 
   socket.on('round:all-submissions', (data) => {
@@ -85,7 +87,7 @@ function connectSocket() {
   });
 
   socket.on('game:over', (data) => {
-    if (currentScreen !== 'results') goto('results');
+    goto('gameover');
     renderGameOver(data.finalScores);
   });
 
@@ -105,6 +107,7 @@ function connectSocket() {
     myPlayerId = null;
     myIsHost = false;
     screenHistory = [];
+    history.replaceState(null, '', '/');
     showError('You were removed from the lobby');
     goto('lander');
   });
@@ -115,12 +118,22 @@ function connectSocket() {
     myCurrentRoomCode = null;
     myPlayerId = null;
     myIsHost = false;
+    history.replaceState(null, '', '/');
     goto('closed');
   });
 }
 
-// Auto-rejoin on page load if a session was saved
-if (myCurrentRoomCode && myPlayerId) {
-  showLoading();
-  connectSocket();
-}
+// Auto-join on page load: existing session or URL-based code
+(function initFromUrl() {
+  const match = window.location.pathname.match(/^\/([A-Za-z]{3})$/);
+  const urlCode = match ? match[1].toUpperCase() : null;
+
+  if (myCurrentRoomCode && myPlayerId) {
+    // Session already saved — rejoin (existing code handles this in connectSocket)
+    showLoading();
+    connectSocket();
+  } else if (urlCode) {
+    // Fresh visit to /ABC — prompt to join that lobby
+    validateAndJoin(urlCode);
+  }
+})();

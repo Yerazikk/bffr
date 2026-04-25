@@ -54,19 +54,7 @@ function initGameFromServer(data) {
   }
 
   updateSubmitBtn();
-
-  if (mySubmitted) {
-    const btn = document.getElementById('g-submit');
-    if (btn) { btn.textContent = 'waiting for others...'; btn.disabled = true; btn.style.opacity = '0.5'; }
-    if (isText) {
-      if (textInput) { textInput.disabled = true; textInput.style.opacity = '0.7'; }
-    } else {
-      slots.forEach((_, i) => {
-        const el = document.getElementById('es' + i);
-        if (el) { el.onclick = null; el.style.opacity = '0.7'; }
-      });
-    }
-  }
+  hideChangeAnswerHint();
 
   const modeLabel = isText
     ? (myAnswerMode === 'word' ? 'in one word...' : 'in one sentence...')
@@ -99,14 +87,24 @@ function setCat(cat, el) {
 function searchEmoji(q) {
   const term = q.trim().toLowerCase();
   if (!term) { renderGrid(CATS[currentCat]); return; }
-  const exact = ALL.filter(e => {
-    const kw = EMOJI_KEYWORDS[e] || '';
-    return kw.split(' ').some(w => w.startsWith(term));
-  });
-  if (exact.length) { renderGrid(exact); return; }
-  // fallback: any keyword contains the term
-  const partial = ALL.filter(e => (EMOJI_KEYWORDS[e] || '').includes(term));
-  renderGrid(partial.length ? partial : CATS[currentCat]);
+
+  const scored = [];
+  for (const e of ALL) {
+    const kw = (EMOJI_KEYWORDS[e] || '').toLowerCase();
+    const words = kw.split(' ');
+    let score = 0;
+    if (words.some(w => w === term)) score = 3;          // exact word match
+    else if (words.some(w => w.startsWith(term))) score = 2; // prefix match
+    else if (kw.includes(term)) score = 1;                // substring anywhere
+    if (score > 0) scored.push({ e, score });
+  }
+
+  if (scored.length) {
+    scored.sort((a, b) => b.score - a.score);
+    renderGrid(scored.map(x => x.e));
+  } else {
+    renderGrid(CATS[currentCat]);
+  }
 }
 
 function renderGrid(list) {
@@ -167,15 +165,25 @@ function updateSlotLabel() {
 }
 
 function updateSubmitBtn() {
+  const btn = document.getElementById('g-submit');
+  if (!btn) return;
+
+  if (mySubmitted) {
+    btn.textContent = 'waiting for others...';
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    return;
+  }
+
   let ready;
   if (myAnswerMode !== 'emoji') {
     const val = (document.getElementById('g-text-input')?.value || '').trim();
-    ready = val.length > 0 && !mySubmitted;
+    ready = val.length > 0;
   } else {
-    ready = slots.every(v => v !== null) && !mySubmitted;
+    ready = slots.every(v => v !== null);
   }
-  const btn = document.getElementById('g-submit');
-  if (!btn) return;
+  btn.textContent = 'submit answer →';
   btn.disabled = !ready;
   btn.style.opacity = ready ? '1' : '0.3';
   btn.style.cursor = ready ? 'pointer' : 'not-allowed';
@@ -198,25 +206,49 @@ function onTextInput(val) {
 function submitText() {
   const inp = document.getElementById('g-text-input');
   const val = (inp?.value || '').trim();
-  if (!val || mySubmitted || !socket) return;
+  if (!val || !socket) return;
+  const wasSubmitted = mySubmitted;
   mySubmitted = true;
   socket.emit('round:submit', { text: val });
-  const btn = document.getElementById('g-submit');
-  if (btn) { btn.textContent = 'waiting for others...'; btn.disabled = true; btn.style.opacity = '0.5'; }
-  if (inp) { inp.disabled = true; inp.style.opacity = '0.7'; }
+  updateSubmitBtn();
+  if (!wasSubmitted) showChangeAnswerHint();
 }
 
 function submitEmojis() {
-  if (!slots.every(v => v !== null) || mySubmitted || !socket) return;
+  if (!slots.every(v => v !== null) || !socket) return;
+  const wasSubmitted = mySubmitted;
   mySubmitted = true;
   socket.emit('round:submit', { emojis: [...slots] });
+  updateSubmitBtn();
+  if (!wasSubmitted) showChangeAnswerHint();
+}
 
-  const btn = document.getElementById('g-submit');
-  if (btn) { btn.textContent = 'waiting for others...'; btn.disabled = true; btn.style.opacity = '0.5'; }
-  slots.forEach((_, i) => {
-    const el = document.getElementById('es' + i);
-    if (el) { el.onclick = null; el.style.opacity = '0.7'; }
-  });
+function showChangeAnswerHint() {
+  const el = document.getElementById('g-change-hint');
+  if (el) el.style.display = 'block';
+}
+
+function hideChangeAnswerHint() {
+  const el = document.getElementById('g-change-hint');
+  if (el) el.style.display = 'none';
+}
+
+function changeAnswer() {
+  mySubmitted = false;
+  hideChangeAnswerHint();
+  // Re-enable text input if text mode
+  if (myAnswerMode !== 'emoji') {
+    const inp = document.getElementById('g-text-input');
+    if (inp) { inp.disabled = false; inp.style.opacity = '1'; }
+  } else {
+    // Re-enable emoji slots
+    const count = slots.length;
+    for (let i = 0; i < count; i++) {
+      const el = document.getElementById('es' + i);
+      if (el) { el.onclick = () => selectSlot(i); el.style.opacity = '1'; }
+    }
+  }
+  updateSubmitBtn();
 }
 
 // Drag-to-resize emoji keyboard panel

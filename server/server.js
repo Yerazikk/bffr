@@ -46,7 +46,7 @@ function sanitizeSettings(s = {}) {
     voteSeconds: clamp(s.voteSeconds, 10, 60) || 20,
     category: VALID_CATEGORIES.includes(s.category) ? s.category : 'all',
     emojiSlots: clamp(s.emojiSlots, 1, 10) || 3,
-    maxPlayers: clamp(s.maxPlayers, 2, 8) || 8,
+    maxPlayers: clamp(s.maxPlayers, 3, 8) || 8,
     answerMode: ['emoji', 'word', 'sentence'].includes(s.answerMode) ? s.answerMode : 'emoji',
     customPacks: Array.isArray(s.customPacks)
       ? s.customPacks.slice(0, 5).map(p => typeof p === 'string' ? p.slice(0, 10000) : '')
@@ -200,7 +200,7 @@ io.on('connection', socket => {
     if (!room) return;
     if (room.hostPlayerId !== meta.playerId) return socket.emit('error', { message: 'Only the host can start' });
     if (room.gameState !== 'lobby') return socket.emit('error', { message: 'Game already started' });
-    if (activePlayers(room).length < 2) return socket.emit('error', { message: 'Need at least 2 players' });
+    if (activePlayers(room).length < 3) return socket.emit('error', { message: 'Need at least 3 players — add a bot!' });
 
     if (settings) room.settings = sanitizeSettings({ ...room.settings, ...settings });
     room.players.forEach(p => p.score = 0);
@@ -253,7 +253,14 @@ io.on('connection', socket => {
     const room = rooms.get(meta.roomCode);
     if (!room?.currentRound) return;
     if (room.gameState !== 'submitting') return socket.emit('error', { message: 'Not submission phase' });
-    if (room.currentRound.submissions[meta.playerId]) return socket.emit('error', { message: 'Already submitted' });
+
+    const alreadySubmitted = !!room.currentRound.submissions[meta.playerId];
+    if (alreadySubmitted) {
+      // Only allow re-submission if the player is not the last one remaining
+      const active = activePlayers(room);
+      const allOthersSubmitted = active.every(p => p.id === meta.playerId || !!room.currentRound.submissions[p.id]);
+      if (allOthersSubmitted) return socket.emit('error', { message: 'Cannot change — you are the last one' });
+    }
 
     const mode = room.settings.answerMode || 'emoji';
     if (mode === 'emoji') {
@@ -283,16 +290,17 @@ io.on('connection', socket => {
     const room = rooms.get(meta.roomCode);
     if (!room?.currentRound) return;
     if (room.gameState !== 'voting') return socket.emit('error', { message: 'Not voting phase' });
-    if (room.currentRound.votes[meta.playerId]) return socket.emit('error', { message: 'Already voted' });
     if (meta.playerId === targetPlayerId) return socket.emit('error', { message: 'Cannot vote for yourself' });
     if (!room.players.find(p => p.id === targetPlayerId)) return socket.emit('error', { message: 'Player not found' });
 
+    const hadVote = !!room.currentRound.votes[meta.playerId];
     room.currentRound.votes[meta.playerId] = targetPlayerId;
     touchRoom(room);
 
     const active = activePlayers(room);
     const cast = Object.keys(room.currentRound.votes).length;
-    io.to(room.code).emit('vote:progress', { votesCast: cast, totalVoters: active.length });
+    // Only broadcast progress when a new vote is cast (not a change)
+    if (!hadVote) io.to(room.code).emit('vote:progress', { votesCast: cast, totalVoters: active.length });
 
     if (cast >= active.length) { clearTimers(room); endVotePhase(room); }
   });
@@ -537,31 +545,46 @@ function handleLeave(socket, graceful = false) {
   const player = room.players.find(p => p.id === meta.playerId);
   if (!player) return;
 
-  player.connected = false;
-  player.socketId = null;
+  socket.leave(room.code);
 
-  // Transfer host (never to a bot)
-  if (room.hostPlayerId === player.id) {
-    if (graceful) {
-      if (player._hostTimer) { clearTimeout(player._hostTimer); player._hostTimer = null; }
-      transferHost(room, player);
-    } else {
-      // Grace period: give the player 5s to reconnect before transferring host
+  if (graceful) {
+    // Intentional leave: fully remove the player from the room
+    if (player._hostTimer) { clearTimeout(player._hostTimer); player._hostTimer = null; }
+
+    // Transfer host before removing
+    if (room.hostPlayerId === player.id) transferHost(room, player);
+
+    room.players = room.players.filter(p => p.id !== player.id);
+
+    const humanRemaining = room.players.filter(p => !p.isBot && p.connected);
+    if (humanRemaining.length === 0) {
+      clearTimers(room);
+      io.to(room.code).emit('room:closed');
+      rooms.delete(room.code);
+      return;
+    }
+  } else {
+    // Tab close / network drop: mark disconnected, allow rejoin with grace period
+    player.connected = false;
+    player.socketId = null;
+
+    if (room.hostPlayerId === player.id) {
       player._hostTimer = setTimeout(() => {
         player._hostTimer = null;
         if (room.hostPlayerId === player.id) transferHost(room, player);
       }, 5000);
     }
+
+    const humanConnected = activePlayers(room).filter(p => !p.isBot);
+    if (humanConnected.length === 0) {
+      clearTimers(room);
+      io.to(room.code).emit('room:closed');
+      rooms.delete(room.code);
+      return;
+    }
   }
 
   const connected = activePlayers(room);
-  const humanConnected = connected.filter(p => !p.isBot);
-  if (humanConnected.length === 0) {
-    clearTimers(room);
-    rooms.delete(room.code);
-    return;
-  }
-
   io.to(room.code).emit('lobby:update', lobbyPayload(room));
 
   // Check if remaining players complete the phase

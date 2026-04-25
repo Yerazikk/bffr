@@ -41,7 +41,7 @@ function renderLobby(data) {
     const btn = document.getElementById('wh-start-btn');
     const msg = document.getElementById('wh-min-msg');
     const connected = players.filter(p => p.isConnected).length;
-    const canStart = connected >= 2;
+    const canStart = connected >= 3;
     if (btn) {
       btn.disabled = !canStart || !myIsHost;
       btn.style.opacity = canStart && myIsHost ? '1' : '0.4';
@@ -106,11 +106,13 @@ function addBot() {
 }
 
 function exitToHome() {
+  if (socket) socket.emit('room:leave');
   clearRoomSession();
   myCurrentRoomCode = null;
   myPlayerId = null;
   myIsHost = false;
   humanPlayerCount = 1;
   screenHistory = [];
+  history.replaceState(null, '', '/');
   goto('lander');
 }
